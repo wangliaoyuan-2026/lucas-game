@@ -1,0 +1,16 @@
+# Lucas 的闯关乐园
+
+一个给 5 岁小朋友的离线闯关学习游戏（PWA）。在 iPad/iPhone 的 Safari 打开网址 → 分享 → 添加到主屏幕，之后断网也能玩。
+
+## 文件结构
+- `content/math-levels.js` 数学关卡配置（加关卡、调难度只改这里）
+- `js/math.js` 数学出题器（各题型和提示）
+- `js/app.js` 游戏主程序（地图、闯关、车库、家长设置、每日时长）
+- `js/characters.js` 角色形象和车库车辆
+- `sw.js` 离线缓存——**每次更新内容都要改 VERSION**，设备联网打开后会自动换新版
+
+## 家长入口
+长按右上角 ⚙️ 两秒，答对一道乘法题即可进入：改角色名字、设每天时长、看错题统计。
+
+## 素材授权
+`img/` 里的猫、老鼠、奶酪图片来自 [Microsoft Fluent Emoji](https://github.com/microsoft/fluentui-emoji)，MIT License，Copyright (c) Microsoft Corporation。
