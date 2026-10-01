@@ -1,6 +1,6 @@
 // Lucas 的闯关乐园 —— 主程序
 (function () {
-  const VERSION = 'v1.3';
+  const VERSION = 'v1.4';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
@@ -37,15 +37,65 @@
       || vs.find((v) => /zh[-_]CN/i.test(v.lang)) || vs.find((v) => /^zh/i.test(v.lang)) || null;
   }
   if ('speechSynthesis' in window) { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
-  function say(text) {
-    if (!('speechSynthesis' in window) || !text) return;
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text.replace(/−/g, '减').replace(/×/g, '乘').replace(/÷/g, '除以'));
-    u.lang = 'zh-CN'; if (zhVoice) u.voice = zhVoice; u.rate = 0.92; u.pitch = 1.1;
-    speechSynthesis.speak(u);
+  // 机器朗读一句，读完时 resolve
+  function speakP(text) {
+    return new Promise((res) => {
+      if (!('speechSynthesis' in window) || !text) return res();
+      const u = new SpeechSynthesisUtterance(text.replace(/−/g, '减').replace(/×/g, '乘').replace(/÷/g, '除以'));
+      u.lang = 'zh-CN'; if (zhVoice) u.voice = zhVoice; u.rate = 0.92; u.pitch = 1.1;
+      u.onend = u.onerror = () => res();
+      speechSynthesis.speak(u);
+      setTimeout(res, 1500 + text.length * 350);
+    });
   }
 
+  // ---------- 妈妈的录音（voice/*.m4a），没加载好时用机器朗读兜底 ----------
+  const VOICE = {
+    praise: ['A01', 'A02', 'A03', 'A04', 'A05', 'A06', 'A07', 'A08', 'A09', 'A10'],
+    wrong: ['B01', 'B02', 'B03'],
+    tease: [['D01', '追不上我～'], ['D03', '嘿嘿，来呀！'], ['D04', '我跑啦！']],
+  };
+  const clips = {};
+  let voicesLoading = false;
+  function loadVoices() {
+    const c = audio(); if (!c || voicesLoading) return; voicesLoading = true;
+    const names = [...VOICE.praise, ...VOICE.wrong, ...VOICE.tease.map((t) => t[0]), 'C01', 'C02', 'C03', 'C04', 'C05', 'C06'];
+    names.forEach((n) => fetch(`voice/${n}.m4a`).then((r) => r.arrayBuffer())
+      .then((buf) => new Promise((ok, no) => c.decodeAudioData(buf, ok, no)))
+      .then((b) => { clips[n] = b; }).catch(() => { }));
+  }
+  let vTok = 0, curSrc = null;
+  function stopVoice() {
+    vTok++;
+    if (curSrc) { try { curSrc.stop(); } catch (e) { } curSrc = null; }
+    if ('speechSynthesis' in window) speechSynthesis.cancel();
+  }
+  function playClip(name) {
+    const b = clips[name], c = audio();
+    if (!b || !c || S.momVoice === false) return null;
+    return new Promise((res) => {
+      const src = c.createBufferSource(); src.buffer = b; src.connect(c.destination);
+      src.onended = () => { if (curSrc === src) curSrc = null; res(); };
+      curSrc = src; src.start();
+    });
+  }
+  // 依次播放：字符串 = 机器朗读；{ clip: 名字或名字数组, text: 兜底文字 } = 录音
+  async function talk(...parts) {
+    stopVoice(); const my = vTok;
+    for (const p of parts) {
+      if (my !== vTok) return;
+      if (!p) continue;
+      if (typeof p === 'string') { await speakP(p); continue; }
+      const name = Array.isArray(p.clip) ? pick(p.clip) : p.clip;
+      const pr = playClip(name);
+      if (pr) await pr; else if (p.text) await speakP(p.text);
+    }
+  }
+  const say = (text) => talk(text);
+
   let ac = null;
+  // iOS 17+：让声音不受静音键影响
+  try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { }
   function audio() { if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { } } if (ac && ac.state === 'suspended') ac.resume(); return ac; }
   function tone(freq, dur, type = 'sine', vol = 0.18, when = 0, slide = 0) {
     const c = audio(); if (!c) return;
@@ -135,7 +185,8 @@
       </div>`, 'bg-sky');
     $('#go').onclick = () => {
       started = true; audio(); fx.win();
-      say(`Lucas，欢迎来到闯关乐园！帮${S.names.cat}抓住${S.names.mouse}吧！`);
+      loadVoices();
+      setTimeout(() => talk({ clip: 'C01', text: `Lucas，欢迎来到闯关乐园！帮${S.names.cat}抓住${S.names.mouse}吧！` }), 400);
       showHome();
     };
   }
@@ -199,7 +250,7 @@
     $('#back').onclick = () => { fx.tap(); showHome(); };
     app.querySelectorAll('.node').forEach((b) => b.onclick = () => {
       const id = +b.dataset.id;
-      if (!isUnlocked(id)) { fx.bad(); say('先通过前面的关卡才能解锁哦'); return; }
+      if (!isUnlocked(id)) { fx.bad(); talk({ clip: 'C05', text: '先通过前面的关卡才能解锁哦' }); return; }
       fx.tap(); startLevel(levelById(id));
     });
     const n = $('.node.next'); if (n) n.scrollIntoView({ block: 'center' });
@@ -334,13 +385,13 @@
       if (first) stats.right++;
       if (isMath && !q.isReview) adapt(q.type, run.lv, first);
       if (first && q.isReview) D.review = D.review.filter((r) => r.key !== q.key);
-      say(pick(PRAISE));
+      const praised = talk({ clip: VOICE.praise, text: pick(PRAISE) });
       run.i++; moveTom();
       $('#tom .actor').classList.add('zoom');
       setTimeout(() => { const r = $('#tom .actor'); if (r) r.classList.remove('zoom'); }, 600);
       save();
       const go = () => { if (run) { run.locked = false; nextQ(); } };
-      if (q.learn) setTimeout(() => showLearn(q.learn, go), 700);
+      if (q.learn) Promise.all([praised, new Promise((r) => setTimeout(r, 700))]).then(() => { if (run && run.q === q) showLearn(q.learn, go); });
       else setTimeout(go, 1300);
     } else {
       btn.classList.add('wrong'); btn.disabled = true; fx.bad();
@@ -363,7 +414,9 @@
 
   function jerryTease() {
     const b = $('#bubble'); if (!b) return;
-    b.textContent = pick(TEASE); b.classList.add('show');
+    const [clip, text] = pick(VOICE.tease);
+    run.teaseClip = { clip };
+    b.textContent = text; b.classList.add('show');
     $('#jerry .actor').classList.add('wiggle');
     setTimeout(() => { b.classList.remove('show'); const r = $('#jerry .actor'); if (r) r.classList.remove('wiggle'); }, 1600);
   }
@@ -376,7 +429,7 @@
     const enc = pick(ENCOURAGE);
     h.innerHTML = `<div class="hint-say">💡 ${q.hint.say}</div>${q.hint.html || ''}${q.hint.eq ? `<div class="hint-eq">${q.hint.eq}</div>` : ''}${q.hint.vis ? renderVis(q.hint.vis) : ''}`;
     if (q.hint.vis && q.hint.vis.kind === 'deal') bindDeal(h, q.hint.vis);
-    say(enc + '。' + q.hint.say);
+    talk(run.teaseClip, { clip: VOICE.wrong, text: enc }, q.hint.say);
   }
 
   function renderVis(v) {
@@ -452,7 +505,7 @@
     fx.vroom();
     setTimeout(() => {
       fx.win(); confetti();
-      say(`抓到啦！${S.names.cat}抓住了${S.names.mouse}！` + (newCar ? `你获得了新车：${newCar.name}！` : ''));
+      talk({ clip: 'C02', text: `抓到啦！${S.names.cat}抓住了${S.names.mouse}！` }, newCar && { clip: 'C03', text: '你获得了一辆新车！' }, newCar && newCar.name + '！');
       const secs = Math.round((Date.now() - run.t0) / 1000);
       const next = levelById(lv.id + 1);
       const fuel = outOfFuel();
@@ -490,7 +543,7 @@
     $('#back').onclick = () => { fx.tap(); showHome(); };
     app.querySelectorAll('.car').forEach((b) => b.onclick = () => {
       const v = vehicle(b.dataset.id);
-      if (!S.cars.includes(v.id)) { fx.bad(); say('这辆车还没解锁，继续闯关就能得到！'); return; }
+      if (!S.cars.includes(v.id)) { fx.bad(); talk({ clip: 'C06', text: '这辆车还没解锁，继续闯关就能得到！' }); return; }
       fx.vroom(); say(v.name + '！');
     });
   }
@@ -504,7 +557,7 @@
         <p class="hello">${S.names.cat}要去加油、睡觉啦，明天再来抓${S.names.mouse}吧！</p>
         <button class="gear" id="gear" aria-label="家长">⚙️</button>
       </div>`, 'bg-night');
-    say(`今天的油用完啦，${S.names.cat}要睡觉了，明天再来吧！`);
+    talk({ clip: 'C04', text: `今天的油用完啦，${S.names.cat}要睡觉了，明天再来吧！` });
     longPress($('#gear'), 2000, parentGate);
   }
 
@@ -540,6 +593,8 @@
           ${avatar ? '<button class="mini" id="noPhoto">去掉照片</button>' : ''}
           ${avatar !== AVATAR_DEFAULT ? '<button class="mini" id="defPhoto">用回默认照片</button>' : ''}
           <p class="note">默认是游戏里自带的 Lucas 照片。在这里换的照片只保存在这台设备上。</p></div></div></section>
+        <section><h3>声音</h3>
+          <label><input type="checkbox" id="mom" ${S.momVoice === false ? '' : 'checked'}> 用妈妈的录音（夸奖、鼓励、通关等），关掉就全部用机器朗读</label></section>
         <section><h3>每天时长</h3>
           <label>每天可以玩 <select id="limit">${[10, 15, 20, 30, 45, 60, 0].map((n) => `<option value="${n}" ${S.limit === n ? 'selected' : ''}>${n ? n + ' 分钟' : '不限'}</option>`).join('')}</select></label>
           <p>今天已玩 ${Math.floor(S.today.sec / 60)} 分钟 <button class="mini" id="resetToday">重置今天</button></p></section>
@@ -557,7 +612,7 @@
     $('#back').onclick = () => {
       S.names.cat = $('#ncat').value.trim() || '汤姆';
       S.names.mouse = $('#nmouse').value.trim() || '杰瑞';
-      S.limit = +$('#limit').value; save(); showHome();
+      S.limit = +$('#limit').value; S.momVoice = $('#mom').checked; save(); showHome();
     };
     $('#photo').onchange = (e) => { const f = e.target.files[0]; if (f) cropPhoto(f); };
     const np = $('#noPhoto'); if (np) np.onclick = () => { avatar = null; try { localStorage.setItem(AVATAR_KEY, 'none'); } catch (e) { } showParent(); };
