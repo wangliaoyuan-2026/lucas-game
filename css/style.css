@@ -271,3 +271,4 @@ button { font-family: inherit; color: inherit; border: 0; cursor: pointer; touch
   .qcard.learn .lc-words, .qcard.learn .lc-sent { align-self: center; }
   .lc-char { font-size: max(90px, 24vmin); }
 }
+.duo .actor.tom.has-face { --s: 30vmin; }

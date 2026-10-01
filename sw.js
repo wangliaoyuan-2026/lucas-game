@@ -1,10 +1,10 @@
 // 离线缓存：每次更新内容时把 VERSION 改一下，设备联网打开后会自动换成新版
-const VERSION = 'lucas-v1.3.0';
+const VERSION = 'lucas-v1.3.1';
 const FILES = [
   './', 'index.html', 'manifest.webmanifest', 'css/style.css',
   'content/math-levels.js', 'content/hanzi.js', 'js/hanzi.js', 'fonts/kai.woff2', 'js/characters.js', 'js/math.js', 'js/app.js',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png',
-  'img/cheese.png', 'js/lottie_light.min.js', 'js/anims.js',
+  'img/cheese.png', 'img/lucas.jpg', 'js/lottie_light.min.js', 'js/anims.js',
 ];
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(VERSION).then((c) => c.addAll(FILES)).then(() => self.skipWaiting()));

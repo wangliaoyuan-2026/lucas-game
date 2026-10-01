@@ -80,8 +80,10 @@
   // ================= 小组件 =================
   const vehicle = (id) => VEHICLES.find((v) => v.id === id) || VEHICLES[0];
   const AVATAR_KEY = 'lucas-game-avatar';
-  let avatar = null;
-  try { avatar = localStorage.getItem(AVATAR_KEY); } catch (e) { }
+  // 默认用内置的 Lucas 照片；家长设置里可以换别的照片，或者去掉（存成 'none'）
+  const AVATAR_DEFAULT = 'img/lucas.jpg';
+  let avatar = AVATAR_DEFAULT;
+  try { const v = localStorage.getItem(AVATAR_KEY); if (v) avatar = v === 'none' ? null : v; } catch (e) { }
   const rider = (who, mood) => actor(who, mood, avatar);
   const starsHtml = (n, max = 3) => Array.from({ length: max }, (_, i) => `<span class="${i < n ? 'on' : ''}">★</span>`).join('');
   const totalStars = () => ['math', 'hanzi'].reduce((t, k) => t + Object.values(S[k].stars).reduce((a, b) => a + b, 0), 0);
@@ -536,7 +538,8 @@
           <div class="ava-row"><div class="ava-prev">${rider('tom', 'happy')}</div>
           <div><label class="mini file">📷 选择照片<input type="file" id="photo" accept="image/*" hidden></label>
           ${avatar ? '<button class="mini" id="noPhoto">去掉照片</button>' : ''}
-          <p class="note">照片只保存在这台设备上，不会上传到网上。</p></div></div></section>
+          ${avatar !== AVATAR_DEFAULT ? '<button class="mini" id="defPhoto">用回默认照片</button>' : ''}
+          <p class="note">默认是游戏里自带的 Lucas 照片。在这里换的照片只保存在这台设备上。</p></div></div></section>
         <section><h3>每天时长</h3>
           <label>每天可以玩 <select id="limit">${[10, 15, 20, 30, 45, 60, 0].map((n) => `<option value="${n}" ${S.limit === n ? 'selected' : ''}>${n ? n + ' 分钟' : '不限'}</option>`).join('')}</select></label>
           <p>今天已玩 ${Math.floor(S.today.sec / 60)} 分钟 <button class="mini" id="resetToday">重置今天</button></p></section>
@@ -557,7 +560,8 @@
       S.limit = +$('#limit').value; save(); showHome();
     };
     $('#photo').onchange = (e) => { const f = e.target.files[0]; if (f) cropPhoto(f); };
-    const np = $('#noPhoto'); if (np) np.onclick = () => { avatar = null; try { localStorage.removeItem(AVATAR_KEY); } catch (e) { } showParent(); };
+    const np = $('#noPhoto'); if (np) np.onclick = () => { avatar = null; try { localStorage.setItem(AVATAR_KEY, 'none'); } catch (e) { } showParent(); };
+    const dp = $('#defPhoto'); if (dp) dp.onclick = () => { avatar = AVATAR_DEFAULT; try { localStorage.removeItem(AVATAR_KEY); } catch (e) { } showParent(); };
     $('#resetToday').onclick = () => { S.today = { date: todayStr(), sec: 0 }; save(); showParent(); };
     $('#wipe').onclick = () => {
       const m = modal(`<p>确定清空所有星星、车库和记录吗？不能恢复。</p><div class="row"><button class="big ghost" id="no">取消</button><button class="big danger" id="yes">清空</button></div>`);
