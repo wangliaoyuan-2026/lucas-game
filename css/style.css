@@ -205,8 +205,8 @@ button { font-family: inherit; color: inherit; border: 0; cursor: pointer; touch
 .bigstars span { font-size: max(40px, 9vmin); }
 .modal .row { margin-top: 2vmin; }
 .qcard { justify-content: flex-start; }
-.qcard > :first-child { margin-top: auto; }
-.qcard > :last-child { margin-bottom: auto; }
+/* 上下各放一个弹性空白，内容居中；内容太多时空白缩成 0，可以滚动 */
+.qcard::before, .qcard::after { content: ""; flex: 1 1 0; min-height: 0; }
 .qcard.has-hint { gap: 1.2vmin; padding-top: 2vmin; }
 .qcard.has-hint .qtext { font-size: max(28px, 7vmin); }
 .qcard.has-hint.word .qtext { font-size: max(18px, 4vmin); }
@@ -225,3 +225,49 @@ button { font-family: inherit; color: inherit; border: 0; cursor: pointer; touch
 .actor .face::before { left: -22%; transform: rotate(8deg); }
 .actor .face::after { right: -22%; transform: rotate(-8deg); }
 .caught .actor.tom.has-face { --s: 22vmin; }
+
+/* ---------- 汉字 ---------- */
+@font-face { font-family: "WenKai"; src: url("../fonts/kai.woff2") format("woff2"); font-display: swap; }
+:root { --kai: "WenKai", "Kaiti SC", "STKaiti", "KaiTi", var(--font); }
+.qtext.hz-big { font-family: var(--kai); font-size: max(72px, 19vmin); font-weight: 400; line-height: 1; }
+.qtext.hz-word { font-family: var(--kai); font-size: max(56px, 15vmin); font-weight: 400; letter-spacing: .1em; }
+.qtext.hz-sent { font-family: var(--kai); font-size: max(30px, 7.5vmin); font-weight: 400; white-space: normal; line-height: 1.5; }
+.qtext.listen { font-size: max(56px, 13vmin); cursor: pointer; animation: bob 1.4s infinite; }
+.qtext.emo-big { font-size: max(64px, 16vmin); line-height: 1; }
+.qcard.has-hint .qtext.hz-big { font-size: max(56px, 14vmin); }
+.qcard.has-hint .qtext.hz-word, .qcard.has-hint .qtext.listen, .qcard.has-hint .qtext.emo-big { font-size: max(40px, 10vmin); }
+.qcard.has-hint .qtext.hz-sent { font-size: max(24px, 5.5vmin); }
+.choices.hz .choice b { font-family: var(--kai); font-weight: 400; font-size: max(44px, 12vmin); }
+.choices.emo .choice b { font-size: max(44px, 11vmin); }
+.choices.hz .choice, .choices.emo .choice { min-height: max(84px, 19vmin); }
+.hz-words { font-family: var(--kai); font-size: max(28px, 7vmin); letter-spacing: .08em; }
+.hz-sent { font-family: var(--kai); font-size: max(22px, 5vmin); }
+.hint .pic { font-size: max(36px, 9vmin); }
+
+/* 学习卡 */
+.qcard.learn { background: #fffaf0; gap: 2.4vmin; }
+.lc-top { display: flex; align-items: center; gap: 4vmin; }
+.lc-pic { font-size: max(56px, 15vmin); }
+.lc-py { text-align: center; font-size: max(22px, 5.5vmin); color: var(--orange-d); font-weight: 700; }
+.lc-char { font-family: var(--kai); font-size: max(90px, 24vmin); line-height: 1; width: 1.25em; height: 1.25em; display: grid; place-items: center;
+  background: linear-gradient(#e6c9a8, #e6c9a8) center/100% 1px no-repeat, linear-gradient(#e6c9a8, #e6c9a8) center/1px 100% no-repeat, #fff; border: 3px solid #d9534f; }
+.lc-words { display: flex; gap: 3vmin; flex-wrap: wrap; justify-content: center; }
+.lc-w, .lc-sent { background: #fff; border-radius: 99px; padding: 1.4vmin 4vmin; font-family: var(--kai); font-size: max(26px, 6.5vmin); box-shadow: 0 .8vmin 0 #eadfce; }
+.lc-sent { font-size: max(22px, 5vmin); border-radius: 3vmin; }
+.lc-w em, .lc-sent em { font-style: normal; color: #d9534f; }
+.choices.one { grid-template-columns: 1fr; padding: 0 20vmin 4vmin; }
+.choices.one .big { font-size: max(24px, 6vmin); padding: 3vmin; }
+.hz-all { font-family: var(--kai); font-size: 20px; line-height: 1.9; }
+.qcard.learn { display: grid; grid-template-columns: auto 1fr; grid-template-rows: 1fr 1fr; column-gap: 5vmin; row-gap: 2vmin; align-items: center; justify-items: center; }
+.qcard.learn > * { margin: 0 !important; }
+.qcard.learn::before, .qcard.learn::after { display: none; }
+.qcard.learn .lc-top { grid-row: 1 / span 2; }
+.qcard.learn .lc-words { align-self: end; }
+.qcard.learn .lc-sent { align-self: start; }
+.lc-char { font-size: max(80px, 18vmin); }
+.lc-pic { font-size: max(48px, 11vmin); }
+@media (max-aspect-ratio: 1/1) {
+  .qcard.learn { display: flex; justify-content: center; gap: 3vmin; }
+  .qcard.learn .lc-words, .qcard.learn .lc-sent { align-self: center; }
+  .lc-char { font-size: max(90px, 24vmin); }
+}

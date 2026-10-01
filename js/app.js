@@ -1,6 +1,6 @@
 // Lucas 的闯关乐园 —— 主程序
 (function () {
-  const VERSION = 'v1.0';
+  const VERSION = 'v1.3';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
@@ -15,6 +15,7 @@
     car: 'car',
     cars: ['car'],
     math: { stars: {}, diff: {}, up: {}, down: {}, review: [], stats: {}, wrongLog: [] },
+    hanzi: { stars: {}, review: [], stats: {}, wrongLog: [] },
   });
   function merge(base, over) {
     if (over === undefined || over === null) return base;
@@ -83,7 +84,15 @@
   try { avatar = localStorage.getItem(AVATAR_KEY); } catch (e) { }
   const rider = (who, mood) => actor(who, mood, avatar);
   const starsHtml = (n, max = 3) => Array.from({ length: max }, (_, i) => `<span class="${i < n ? 'on' : ''}">★</span>`).join('');
-  const totalStars = () => Object.values(S.math.stars).reduce((a, b) => a + b, 0);
+  const totalStars = () => ['math', 'hanzi'].reduce((t, k) => t + Object.values(S[k].stars).reduce((a, b) => a + b, 0), 0);
+
+  // 科目：数学、汉字（以后加成语、英文）
+  const SUBJECTS = {
+    math: { key: 'math', icon: '🔢', name: '数学闯关', levels: MATH_LEVELS, stations: MATH_STATIONS },
+    hanzi: { key: 'hanzi', icon: '🀄', name: '汉字闯关', levels: HanziGen.levels, stations: HanziGen.stations },
+  };
+  let cur = SUBJECTS.math;
+  const SD = () => S[cur.key];
 
   function screen(html, cls = '') {
     app.className = cls; app.innerHTML = html;
@@ -134,7 +143,7 @@
     if (outOfFuel()) return showFuelOut();
     const subjects = [
       { id: 'math', icon: '🔢', name: '数学闯关', open: true },
-      { id: 'hanzi', icon: '🀄', name: '汉字闯关' },
+      { id: 'hanzi', icon: '🀄', name: '汉字闯关', open: true },
       { id: 'idiom', icon: '📜', name: '成语闯关' },
       { id: 'english', icon: '🔤', name: '英文闯关' },
     ];
@@ -152,7 +161,7 @@
       </div>`, 'bg-sky');
     app.querySelectorAll('.subject').forEach((b) => b.onclick = () => {
       fx.tap();
-      if (b.dataset.id === 'math') showMap();
+      if (SUBJECTS[b.dataset.id]) { cur = SUBJECTS[b.dataset.id]; showMap(); }
       else say('这个闯关还在建造中，很快就来！');
     });
     $('#garage').onclick = () => { fx.tap(); showGarage(); };
@@ -160,24 +169,24 @@
     $('#gear').onclick = () => say('这是爸爸妈妈的按钮哦');
   }
 
-  // ================= 数学地图 =================
-  const levelById = (id) => MATH_LEVELS.find((l) => l.id === id);
-  const isUnlocked = (id) => id === 1 || (S.math.stars[id - 1] || 0) > 0;
+  // ================= 关卡地图 =================
+  const levelById = (id) => cur.levels.find((l) => l.id === id);
+  const isUnlocked = (id) => id === 1 || (SD().stars[id - 1] || 0) > 0;
   function showMap() {
     if (outOfFuel()) return showFuelOut();
-    const next = MATH_LEVELS.find((l) => isUnlocked(l.id) && !S.math.stars[l.id]);
+    const next = cur.levels.find((l) => isUnlocked(l.id) && !SD().stars[l.id]);
     screen(`
       <header class="bar">
         <button class="pill" id="back">◀ 返回</button>
-        <div class="pill">🔢 数学闯关</div>
+        <div class="pill">${cur.icon} ${cur.name}</div>
         <div class="pill">⭐ ${totalStars()}</div>
       </header>
       <div class="map">
-        ${MATH_STATIONS.map((st) => `
+        ${cur.stations.map((st) => `
           <section class="station"><h3>${st.name}</h3><div class="nodes">
           ${st.levels.map((id) => {
             const lv = levelById(id); if (!lv) return '';
-            const open = isUnlocked(id), st3 = S.math.stars[id] || 0;
+            const open = isUnlocked(id), st3 = SD().stars[id] || 0;
             return `<button class="node ${lv.boss ? 'boss' : ''} ${open ? '' : 'locked'} ${next && next.id === id ? 'next' : ''}" data-id="${id}">
               <span class="num">${open ? (lv.boss ? '👑' : id) : '🔒'}</span>
               <span class="nm">${lv.name}</span>
@@ -219,17 +228,21 @@
 
   function startLevel(lv) {
     if (outOfFuel()) return showFuelOut();
-    const n = lv.n || (lv.boss ? 10 : 8);
-    const types = Object.keys(lv.types);
-    // 错题复习：从复习池里挑最多 2 道本关题型的题
-    const reviews = S.math.review.filter((r) => lv.types[r.type]).slice(0, 2);
-    const plan = [];
-    const pool = [];
-    while (pool.length < n - reviews.length) pool.push(...shuffle(types.slice()));
-    pool.length = n - reviews.length;
-    pool.forEach((t) => plan.push({ type: t }));
-    reviews.forEach((r) => plan.splice(1 + Math.floor(Math.random() * plan.length), 0, { review: r }));
-    run = { lv, plan, n, i: 0, wrong: 0, q: null, wrongThis: 0, t0: Date.now(), seen: new Set() };
+    let plan;
+    if (cur.key === 'hanzi') plan = HanziGen.plan(lv, S.hanzi.review);
+    else {
+      const n = lv.n || (lv.boss ? 10 : 8);
+      const types = Object.keys(lv.types);
+      // 错题复习：从复习池里挑最多 2 道本关题型的题
+      const reviews = S.math.review.filter((r) => lv.types[r.type]).slice(0, 2);
+      const pool = [];
+      plan = [];
+      while (pool.length < n - reviews.length) pool.push(...shuffle(types.slice()));
+      pool.length = n - reviews.length;
+      pool.forEach((t) => plan.push({ type: t }));
+      reviews.forEach((r) => plan.splice(1 + Math.floor(Math.random() * plan.length), 0, { review: r }));
+    }
+    run = { subj: cur, lv, plan, n: plan.length, i: 0, wrong: 0, q: null, wrongThis: 0, t0: Date.now(), seen: new Set() };
     renderPlay();
     fx.vroom();
     say(`第 ${lv.id} 关，${lv.name}！`);
@@ -275,7 +288,8 @@
     if (run.i >= run.n) return finishLevel();
     const step = run.plan[run.i];
     let q;
-    if (step.review) q = MathGen.build(step.review.type, step.review.d, step.review.p);
+    if (run.subj.key === 'hanzi') q = step.review ? HanziGen.make(step.review.c, step.review.type, run.lv) : HanziGen.make(step.c, step.type, run.lv);
+    else if (step.review) q = MathGen.build(step.review.type, step.review.d, step.review.p);
     else {
       let tries = 0;
       do { q = MathGen.gen(step.type, curDiff(step.type, run.lv)); } while (run.seen.has(q.key) && ++tries < 10);
@@ -290,7 +304,7 @@
     card.innerHTML = `
       ${q.isReview ? '<div class="tag">复习题</div>' : ''}
       ${q.pic ? `<div class="pic">${q.pic}</div>` : ''}
-      <div class="qtext">${q.text.replace('?', '<span class="qm">?</span>').replace('□', '<span class="qm">□</span>').replace('○', '<span class="qm">○</span>')}</div>
+      <div class="qtext ${q.textClass || ''}">${q.text.replace('?', '<span class="qm">?</span>').replace('□', '<span class="qm">□</span>').replace('○', '<span class="qm">○</span>')}</div>
       ${q.sub ? `<div class="qsub">${q.sub}</div>` : ''}
       <div class="hint" id="hint" hidden></div>`;
     card.classList.remove('pop'); void card.offsetWidth; card.classList.add('pop');
@@ -298,8 +312,10 @@
     const ch = $('#choices');
     ch.className = 'choices n' + q.choices.length;
     const label = (c) => q.kind === 'cmp' ? `<b>${c}</b><small>${{ '>': '大于', '<': '小于', '=': '等于' }[c]}</small>` : `<b>${c}</b>`;
+    ch.classList.toggle('hz', q.kind === 'hz'); ch.classList.toggle('emo', q.kind === 'hzpic');
     ch.innerHTML = q.choices.map((c) => `<button class="choice" data-v="${c}">${label(c)}</button>`).join('');
     ch.querySelectorAll('.choice').forEach((b) => b.onclick = () => answer(b));
+    const lt = $('.qtext.listen', card); if (lt) lt.onclick = () => say(q.speak);
     say(q.speak);
   }
 
@@ -307,31 +323,34 @@
     const q = run.q; if (!q || btn.disabled || run.locked) return;
     const v = btn.dataset.v;
     const right = String(q.answer) === v;
-    const stats = S.math.stats[q.type] || (S.math.stats[q.type] = { right: 0, wrong: 0 });
+    const D = S[run.subj.key], isMath = run.subj.key === 'math';
+    const stats = D.stats[q.type] || (D.stats[q.type] = { right: 0, wrong: 0 });
     if (right) {
       run.locked = true;
       btn.classList.add('right'); fx.ok();
       const first = run.wrongThis === 0;
       if (first) stats.right++;
-      if (!q.isReview) adapt(q.type, run.lv, first);
-      if (first && q.isReview) S.math.review = S.math.review.filter((r) => r.key !== q.key);
+      if (isMath && !q.isReview) adapt(q.type, run.lv, first);
+      if (first && q.isReview) D.review = D.review.filter((r) => r.key !== q.key);
       say(pick(PRAISE));
       run.i++; moveTom();
       $('#tom .actor').classList.add('zoom');
       setTimeout(() => { const r = $('#tom .actor'); if (r) r.classList.remove('zoom'); }, 600);
       save();
-      setTimeout(() => { run && (run.locked = false); nextQ(); }, 1300);
+      const go = () => { if (run) { run.locked = false; nextQ(); } };
+      if (q.learn) setTimeout(() => showLearn(q.learn, go), 700);
+      else setTimeout(go, 1300);
     } else {
       btn.classList.add('wrong'); btn.disabled = true; fx.bad();
       if (run.wrongThis === 0) {
         run.wrong++; stats.wrong++;
-        if (!q.isReview) adapt(q.type, run.lv, false);
-        if (!S.math.review.some((r) => r.key === q.key)) {
-          S.math.review.push({ type: q.type, d: q.d, p: q.p, key: q.key });
-          if (S.math.review.length > 30) S.math.review.shift();
+        if (isMath && !q.isReview) adapt(q.type, run.lv, false);
+        if (!D.review.some((r) => r.key === q.key)) {
+          D.review.push(isMath ? { type: q.type, d: q.d, p: q.p, key: q.key } : { type: q.type, c: q.c, key: q.key });
+          if (D.review.length > 30) D.review.shift();
         }
-        S.math.wrongLog.unshift({ t: q.text, a: q.answer, pick: v, at: Date.now() });
-        S.math.wrongLog.length = Math.min(S.math.wrongLog.length, 50);
+        D.wrongLog.unshift({ t: q.log || q.text, a: q.answer, pick: v, at: Date.now() });
+        D.wrongLog.length = Math.min(D.wrongLog.length, 50);
         save();
       }
       run.wrongThis++;
@@ -353,7 +372,7 @@
     h.hidden = false;
     $('#qcard').classList.add('has-hint');
     const enc = pick(ENCOURAGE);
-    h.innerHTML = `<div class="hint-say">💡 ${q.hint.say}</div>${q.hint.eq ? `<div class="hint-eq">${q.hint.eq}</div>` : ''}${q.hint.vis ? renderVis(q.hint.vis) : ''}`;
+    h.innerHTML = `<div class="hint-say">💡 ${q.hint.say}</div>${q.hint.html || ''}${q.hint.eq ? `<div class="hint-eq">${q.hint.eq}</div>` : ''}${q.hint.vis ? renderVis(q.hint.vis) : ''}`;
     if (q.hint.vis && q.hint.vis.kind === 'deal') bindDeal(h, q.hint.vis);
     say(enc + '。' + q.hint.say);
   }
@@ -397,16 +416,32 @@
     };
   }
 
+  // ================= 汉字学习卡 =================
+  function showLearn(it, done) {
+    const card = $('#qcard'); if (!card) return;
+    const hl = (str) => str.split(it.c).join(`<em>${it.c}</em>`);
+    card.className = 'qcard learn pop';
+    card.innerHTML = `
+      <div class="lc-top">${it.e ? `<span class="lc-pic">${it.e}</span>` : ''}<div><div class="lc-py">${it.py}</div><div class="lc-char">${it.c}</div></div></div>
+      <div class="lc-words">${it.w.map((w) => `<button class="lc-w" data-w="${w}">${hl(w)}</button>`).join('')}</div>
+      <button class="lc-sent" data-w="${it.s}">🔊 ${hl(it.s)}</button>`;
+    $('#choices').innerHTML = '<button class="big" id="goOn">继续追 ▶</button>';
+    $('#choices').className = 'choices one';
+    say(`${it.w[0]}的${it.c}。${it.w.join('，')}。${it.s}`);
+    card.querySelectorAll('[data-w]').forEach((b) => b.onclick = () => say(b.dataset.w));
+    $('#goOn').onclick = () => { fx.tap(); done(); };
+  }
+
   // ================= 通关 =================
   function finishLevel() {
     const { lv, wrong } = run;
     const stars = wrong === 0 ? 3 : wrong <= 2 ? 2 : 1;
-    const firstClear = !S.math.stars[lv.id];
-    S.math.stars[lv.id] = Math.max(S.math.stars[lv.id] || 0, stars);
+    const D = S[run.subj.key];
+    const firstClear = !D.stars[lv.id];
+    D.stars[lv.id] = Math.max(D.stars[lv.id] || 0, stars);
+    // 任何科目第一次通关一关，就收集下一辆车
     let newCar = null;
-    if (firstClear && VEHICLES[lv.id] && !S.cars.includes(VEHICLES[lv.id].id)) {
-      newCar = VEHICLES[lv.id]; S.cars.push(newCar.id);
-    }
+    if (firstClear) { newCar = VEHICLES.find((v) => !S.cars.includes(v.id)) || null; if (newCar) S.cars.push(newCar.id); }
     save();
     // 抓住动画
     moveTom(true);
@@ -442,12 +477,12 @@
   function showGarage() {
     screen(`
       <header class="bar"><button class="pill" id="back">◀ 返回</button><div class="pill">🚗 汽车收藏 ${S.cars.length}/${VEHICLES.length}</div><div></div></header>
-      <p class="hello">每次第一次通关，就能收集一辆新车！点一点听听名字</p>
+      <p class="hello">数学、汉字每通过一个新关卡，就能收集一辆新车！点一点听听名字</p>
       <div class="garage">
         ${VEHICLES.map((v, i) => {
           const has = S.cars.includes(v.id);
           return `<button class="car ${has ? '' : 'locked'} " data-id="${v.id}">
-            <span class="veh">${v.e}</span><span>${has ? v.name : `第 ${i} 关解锁`}</span></button>`;
+            <span class="veh">${v.e}</span><span>${has ? v.name : '继续闯关解锁'}</span></button>`;
         }).join('')}
       </div>`, 'bg-sky');
     $('#back').onclick = () => { fx.tap(); showHome(); };
@@ -486,6 +521,11 @@
       return `<tr><td>${MathGen.NAMES[t]}</td><td>${all}</td><td>${all ? Math.round(s.right / all * 100) + '%' : '-'}</td><td>${S.math.diff[t] || '-'}</td></tr>`;
     }).join('');
     const log = S.math.wrongLog.slice(0, 12).map((w) => `<li>${w.t.includes('?') ? w.t.replace('?', w.a) : w.t + ' → ' + w.a} <small>（选了 ${w.pick}）</small></li>`).join('') || '<li>暂无</li>';
+    const hzRows = Object.keys(HanziGen.NAMES).map((t) => {
+      const x = S.hanzi.stats[t] || { right: 0, wrong: 0 }, all = x.right + x.wrong;
+      return `<tr><td>${HanziGen.NAMES[t]}</td><td>${all}</td><td>${all ? Math.round(x.right / all * 100) + '%' : '-'}</td></tr>`;
+    }).join('');
+    const hzLog = S.hanzi.wrongLog.slice(0, 12).map((w) => `<li>${w.t} <small>（选了 ${w.pick}）</small></li>`).join('') || '<li>暂无</li>';
     screen(`
       <header class="bar"><button class="pill" id="back">◀ 返回</button><div class="pill">⚙️ 家长设置</div><div class="pill">${VERSION}</div></header>
       <div class="parent">
@@ -504,6 +544,11 @@
           <table><tr><th>题型</th><th>做过</th><th>一次答对</th><th>当前难度</th></tr>${rows}</table>
           <p>待复习错题：${S.math.review.length} 道 · 已通关 ${Object.keys(S.math.stars).length}/${MATH_LEVELS.length} 关 · 星星 ${totalStars()}</p>
           <h4>最近答错</h4><ul class="log">${log}</ul></section>
+        <section><h3>汉字情况</h3>
+          <table><tr><th>题型</th><th>做过</th><th>一次答对</th></tr>${hzRows}</table>
+          <p>待复习的字：${S.hanzi.review.map((r) => r.c).filter((c, i, a) => a.indexOf(c) === i).join(' ') || '暂无'} · 已通关 ${Object.keys(S.hanzi.stars).length}/${HanziGen.levels.length} 关</p>
+          <h4>最近答错</h4><ul class="log">${hzLog}</ul>
+          <details><summary>查看全部 ${HanziGen.ALL.length} 个字</summary><p class="hz-all">${HANZI_LESSONS.map((L) => `<b>${L.name}</b> ${L.list.map((x) => x.c).join(' ')}`).join('<br>')}</p></details></section>
         <section><h3>危险操作</h3><button class="mini danger" id="wipe">清空全部进度</button></section>
       </div>`, 'bg-plain');
     $('#back').onclick = () => {
