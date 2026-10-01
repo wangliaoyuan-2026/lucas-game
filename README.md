@@ -13,4 +13,6 @@
 长按右上角 ⚙️ 两秒，答对一道乘法题即可进入：改角色名字、设每天时长、看错题统计。
 
 ## 素材授权
-`img/` 里的猫、老鼠、奶酪图片来自 [Microsoft Fluent Emoji](https://github.com/microsoft/fluentui-emoji)，MIT License，Copyright (c) Microsoft Corporation。
+- 猫、老鼠动画：[Google Noto Animated Emoji](https://googlefonts.github.io/noto-emoji-animation/)，CC BY 4.0
+- 奶酪图片：[Microsoft Fluent Emoji](https://github.com/microsoft/fluentui-emoji)，MIT License，Copyright (c) Microsoft Corporation
+- 动画播放：[lottie-web](https://github.com/airbnb/lottie-web)，MIT License
