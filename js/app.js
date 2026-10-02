@@ -1,6 +1,6 @@
 // Lucas 的闯关乐园 —— 主程序
 (function () {
-  const VERSION = 'v1.5.1';
+  const VERSION = 'v1.5.2';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
@@ -510,14 +510,18 @@
         <p class="meta">用时 ${Math.floor(secs / 60)} 分 ${secs % 60} 秒 · 答错 ${wrong} 次</p>
         ${newCar ? `<div class="newcar"><span>${newCar.e}</span>获得新车：<b>${newCar.name}</b></div>` : ''}
         <div class="row">
+          <button class="big ghost" id="rest">🏠 不玩了</button>
           <button class="big ghost" id="again">再玩一次</button>
           ${fuel ? '<button class="big" id="home">今天的油用完啦</button>' : next ? '<button class="big" id="next">下一关 ▶</button>' : '<button class="big" id="home">回地图</button>'}
         </div>`);
+      m.querySelector('.box').insertAdjacentHTML('afterbegin', '<button class="close" id="close" aria-label="关闭">✕</button>');
       const sEls = m.querySelectorAll('.bigstars span');
       for (let i = 0; i < stars; i++) setTimeout(() => { sEls[i].classList.add('on'); fx.star(i); }, 500 + i * 400);
       $('#again', m).onclick = () => { m.remove(); startLevel(lv); };
       const nb = $('#next', m); if (nb) nb.onclick = () => { m.remove(); startLevel(next); };
       const hb = $('#home', m); if (hb) hb.onclick = () => { m.remove(); run = null; showMap(); };
+      $('#close', m).onclick = () => { fx.tap(); m.remove(); stopVoice(); showMap(); };
+      $('#rest', m).onclick = () => { fx.tap(); m.remove(); stopVoice(); showHome(); };
       run = null;
     }, 1200);
   }

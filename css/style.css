@@ -272,3 +272,16 @@ button { font-family: inherit; color: inherit; border: 0; cursor: pointer; touch
   .lc-char { font-size: max(90px, 24vmin); }
 }
 .duo .actor.tom.has-face { --s: 30vmin; }
+.modal .box { position: relative; }
+.modal .close { position: absolute; top: 2.4vmin; right: 2.4vmin; width: max(44px, 9vmin); height: max(44px, 9vmin); border-radius: 50%; background: #f1ece4; font-size: max(20px, 4.4vmin); color: #8a7f72; z-index: 2; }
+.modal .rest { margin-top: 2.4vmin; background: none; font-size: max(16px, 3.6vmin); color: #8a7f72; text-decoration: underline; text-underline-offset: 4px; padding: 1.4vmin 3vmin; }
+.modal .row .big { padding: 2.2vmin 4.5vmin; }
+@media (min-aspect-ratio: 1/1) {
+  .modal h2 { font-size: max(26px, 6vmin); }
+  .caught .actor, .caught .actor.tom.has-face { --s: 17vmin; }
+  .cage .actor { --s: 12vmin; }
+  .bigstars span { font-size: max(36px, 7.5vmin); }
+  .newcar { padding: 1.2vmin 2vmin; }
+  .newcar span { font-size: max(32px, 7vmin); }
+  .modal .meta { margin: 1vmin 0; }
+}
