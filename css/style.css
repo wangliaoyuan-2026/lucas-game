@@ -285,3 +285,118 @@ button { font-family: inherit; color: inherit; border: 0; cursor: pointer; touch
   .newcar span { font-size: max(32px, 7vmin); }
   .modal .meta { margin: 1vmin 0; }
 }
+
+/* =================== 世界地图 =================== */
+.bg-ocean { background: radial-gradient(ellipse at 50% 45%, #7fd8f7 0%, #3fb2e8 45%, #1a86c7 100%); overflow: hidden; }
+.world-bar { position: relative; z-index: 3; }
+.world-title { font-size: max(22px, 5.2vmin); font-weight: 800; color: #fff; text-shadow: 0 .5vmin 0 #0d6aa6, 0 0 2vmin rgba(0, 0, 0, .15); letter-spacing: .04em; }
+.world { position: relative; flex: 1; min-height: 0; }
+.waves { position: absolute; inset: -20%; opacity: .35; pointer-events: none;
+  background-image: radial-gradient(ellipse 22px 8px at 50% 100%, transparent 70%, #fff 72%, #fff 85%, transparent 87%);
+  background-size: 90px 60px; animation: waves 7s linear infinite; }
+@keyframes waves { to { background-position: 90px 60px; } }
+.cloud { position: absolute; font-size: max(40px, 10vmin); opacity: .85; pointer-events: none; animation: drift 38s linear infinite; z-index: 2; }
+.cloud.c1 { top: 4%; animation-duration: 46s; }
+.cloud.c2 { top: 46%; animation-duration: 60s; animation-delay: -25s; font-size: max(30px, 7vmin); }
+.cloud.c3 { top: 80%; animation-duration: 52s; animation-delay: -40s; }
+@keyframes drift { from { left: -15%; } to { left: 110%; } }
+.routes { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.routes path { fill: none; stroke: #fff; stroke-width: 4px; stroke-dasharray: 2px 12px; stroke-linecap: round; opacity: .85; animation: route 1.2s linear infinite; }
+@keyframes route { to { stroke-dashoffset: -14px; } }
+.routes.port { display: none; }
+.isle, .harbor { position: absolute; transform: translate(-50%, -50%); background: none; padding: 0; display: flex; flex-direction: column; align-items: center; z-index: 1; }
+.isle { width: min(42vmin, 33vw); }
+.isle .island-svg { width: 100%; display: block; filter: drop-shadow(0 1.4vmin 1.2vmin rgba(0, 40, 80, .25)); animation: float 5s ease-in-out infinite; }
+.isle:nth-of-type(2n) .island-svg { animation-delay: -2.5s; }
+@keyframes float { 50% { transform: translateY(-1.2vmin); } }
+.isle:active .island-svg { transform: scale(.96); }
+.isle[data-id="math"] { left: 24%; top: 32%; }
+.isle[data-id="hanzi"] { left: 74%; top: 30%; }
+.isle[data-id="idiom"] { left: 25%; top: 74%; }
+.isle[data-id="english"] { left: 75%; top: 74%; }
+.harbor { left: 50%; top: 54%; }
+.isle-label { margin-top: -2vmin; background: #fff; border-radius: 99px; padding: .9vmin 3vmin; display: flex; flex-direction: column; align-items: center; box-shadow: 0 .8vmin 0 rgba(0, 60, 110, .25); position: relative; z-index: 2; }
+.isle-label b { font-size: max(15px, 3.3vmin); color: #3b2b1a; white-space: nowrap; }
+.isle-label small { font-size: max(11px, 2.3vmin); color: #8a7f72; white-space: nowrap; }
+.isle.locked .island-svg { filter: grayscale(.75) brightness(1.05) drop-shadow(0 1.4vmin 1.2vmin rgba(0, 40, 80, .2)); }
+.isle.locked .isle-label { opacity: .8; }
+.isle-lock { position: absolute; top: 28%; left: 50%; transform: translateX(-50%); font-size: max(28px, 7vmin); filter: drop-shadow(0 .4vmin .4vmin rgba(0, 0, 0, .3)); }
+.isle .me { position: absolute; top: -6%; right: 4%; z-index: 3; animation: bob 1.2s ease-in-out infinite; }
+.isle .me .actor { --s: max(48px, 11vmin); }
+.harbor-art { position: relative; width: max(80px, 16vmin); height: max(64px, 12vmin); }
+.harbor-art .ship { position: absolute; left: 0; bottom: 0; font-size: max(48px, 10vmin); animation: float 3s ease-in-out infinite; transform-origin: bottom; }
+.harbor-art .dock { position: absolute; right: -6%; top: 0; font-size: max(24px, 5vmin); }
+.harbor .isle-label { margin-top: 0; }
+
+@media (max-aspect-ratio: 1/1) {
+  .routes.land { display: none; }
+  .routes.port { display: block; }
+  .isle { width: min(58vw, 46vh); }
+  .isle[data-id="math"] { left: 32%; top: 15%; }
+  .isle[data-id="hanzi"] { left: 68%; top: 38%; }
+  .isle[data-id="idiom"] { left: 32%; top: 61%; }
+  .isle[data-id="english"] { left: 68%; top: 85%; }
+  .harbor { left: 80%; top: 13%; }
+  .harbor-art { width: 70px; height: 54px; }
+  .harbor-art .ship { font-size: 42px; }
+}
+
+/* =================== 岛内地图 =================== */
+.bg-island { background: #cfeac0; }
+.island-bar { position: sticky; top: 0; z-index: 5; background: linear-gradient(rgba(255, 255, 255, .85), rgba(255, 255, 255, .55)); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.ribbon { position: relative; background: #e53935; color: #fff; font-weight: 800; font-size: max(18px, 4.4vmin); padding: 1vmin 6vmin; box-shadow: 0 .6vmin 0 #b71c1c; clip-path: polygon(0 0, 100% 0, 96% 50%, 100% 100%, 0 100%, 4% 50%); white-space: nowrap; }
+.trail { position: relative; width: 100%; flex: none; }
+.band { position: absolute; left: 0; right: 0; }
+.band::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 18px; background: radial-gradient(circle at 10px 0, transparent 9px, rgba(255, 255, 255, .35) 10px) 0 0 / 20px 18px repeat-x; opacity: .5; }
+.sign { position: absolute; top: 12px; left: 3%; background: #8d6e63; color: #fff; font-weight: 700; font-size: max(13px, 3vmin); padding: .8vmin 2.4vmin; border-radius: 1.2vmin; box-shadow: 0 .6vmin 0 #5d4037; z-index: 2; }
+.sign i { font-style: normal; display: block; font-size: .75em; opacity: .8; }
+.sign::after { content: ""; position: absolute; left: 50%; top: 100%; width: 1vmin; min-width: 5px; height: 3vmin; background: #6d4c41; transform: translateX(-50%); z-index: -1; }
+.trail-road { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.trail-road path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.road-edge { stroke: rgba(110, 76, 40, .25); stroke-width: max(30px, 7.5vmin); }
+.road-fill { stroke-width: max(24px, 6vmin); }
+.road-dash { stroke: #fff; stroke-width: 3px; stroke-dasharray: 10px 14px; opacity: .8; }
+.deco { position: absolute; font-size: max(30px, 7vmin); transform: translate(-50%, -50%); pointer-events: none; filter: drop-shadow(0 .6vmin .3vmin rgba(0, 0, 0, .15)); }
+.start-flag, .treasure { position: absolute; transform: translate(-50%, -50%); font-size: max(16px, 3.6vmin); font-weight: 800; color: #5d4037; background: #fff; border-radius: 99px; padding: .6vmin 2.4vmin; box-shadow: 0 .6vmin 0 rgba(0, 0, 0, .12); white-space: nowrap; }
+.treasure { font-size: max(36px, 8vmin); background: none; box-shadow: none; display: flex; flex-direction: column; align-items: center; animation: bob 1.6s ease-in-out infinite; }
+.treasure small { font-size: max(12px, 2.6vmin); background: #fff; border-radius: 99px; padding: .3vmin 2vmin; }
+
+.castle { position: absolute; transform: translate(-50%, -64%); width: max(96px, 21vmin); background: none; padding: 0; display: flex; flex-direction: column; align-items: center; z-index: 3; }
+.castle .castle-svg { width: 100%; display: block; filter: drop-shadow(0 1vmin .8vmin rgba(0, 0, 0, .18)); transition: transform .15s; }
+.castle:active .castle-svg { transform: scale(.94); }
+.castle.boss { width: max(120px, 27vmin); }
+.castle .flag { transform-origin: 60px 0; animation: flag 1s ease-in-out infinite alternate; }
+@keyframes flag { to { transform: skewY(-12deg) scaleX(.85); } }
+.castle .badge { position: absolute; top: 47%; left: 50%; transform: translate(-50%, -50%); min-width: max(30px, 6.4vmin); height: max(30px, 6.4vmin); border-radius: 50%; background: #fff; border: max(3px, .7vmin) solid #ffb300; font-weight: 800; font-size: max(15px, 3.4vmin); display: grid; place-items: center; color: #5d4037; box-shadow: 0 .5vmin 0 rgba(0, 0, 0, .15); }
+.castle.boss .badge { background: #ffca28; border-color: #e65100; color: #bf360c; }
+.castle .cname { margin-top: -.6vmin; background: rgba(255, 255, 255, .92); border-radius: 99px; padding: .3vmin 2vmin; font-size: max(12px, 2.6vmin); font-weight: 700; color: #4e342e; white-space: nowrap; box-shadow: 0 .4vmin 0 rgba(0, 0, 0, .08); }
+.castle .stars span { font-size: max(15px, 3.4vmin); text-shadow: 0 .3vmin 0 rgba(0, 0, 0, .12); }
+.castle.locked .castle-svg { filter: grayscale(1) brightness(1.12) contrast(.85) drop-shadow(0 1vmin .8vmin rgba(0, 0, 0, .12)); }
+.castle.locked .badge { border-color: #bbb; background: #f2f2f2; }
+.castle.locked .cname { opacity: .65; }
+.castle.next .castle-svg { animation: glow 1.6s ease-in-out infinite; }
+@keyframes glow { 50% { filter: drop-shadow(0 0 2.4vmin #fff59d) drop-shadow(0 1vmin .8vmin rgba(0, 0, 0, .18)); transform: scale(1.05); } }
+.castle .me { position: absolute; top: -26%; left: 50%; transform: translateX(-50%); z-index: 4; animation: hop 1s ease-in-out infinite; }
+.castle .me .actor { --s: max(54px, 12vmin); }
+@keyframes hop { 50% { transform: translate(-50%, -1.6vmin); } }
+.castle.shake { animation: shake .4s; }
+
+/* =================== 进城堡动画 =================== */
+.enter { position: fixed; inset: 0; z-index: 80; pointer-events: none; }
+.enter .door { position: absolute; top: 0; bottom: 0; width: 50.5%; transition: transform .8s cubic-bezier(.6, 0, .3, 1);
+  background: repeating-linear-gradient(90deg, #8d5a33 0 7vmin, #7a4b29 7vmin 7.6vmin), #8d5a33; box-shadow: inset 0 0 6vmin rgba(0, 0, 0, .35); }
+.enter .door.l { left: 0; border-right: 1vmin solid #5d3a1f; }
+.enter .door.r { right: 0; border-left: 1vmin solid #5d3a1f; }
+.enter .door::after { content: ""; position: absolute; top: 50%; width: 3vmin; height: 3vmin; border-radius: 50%; background: #ffca28; box-shadow: 0 .4vmin 0 #b28704; }
+.enter .door.l::after { right: 3vmin; }
+.enter .door.r::after { left: 3vmin; }
+.enter-art { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2vmin; transition: opacity .3s, transform .5s; animation: enterIn .5s cubic-bezier(.3, 1.4, .6, 1); }
+.enter-art .castle-svg { width: max(160px, 34vmin); filter: drop-shadow(0 2vmin 2vmin rgba(0, 0, 0, .4)); }
+.enter-title { color: #fff; font-size: max(28px, 7vmin); font-weight: 800; text-align: center; text-shadow: 0 .6vmin 0 #4e2c14; line-height: 1.25; }
+.enter-title small { display: block; font-size: .55em; opacity: .9; }
+@keyframes enterIn { from { transform: scale(.4); opacity: 0; } }
+.enter.open .door.l { transform: translateX(-102%); }
+.enter.open .door.r { transform: translateX(102%); }
+.enter.open .enter-art { opacity: 0; transform: scale(1.4); }
+.world { overflow: hidden; }
+.enter .door { z-index: 1; } .enter-art { z-index: 2; }

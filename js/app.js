@@ -1,6 +1,6 @@
 // Lucas 的闯关乐园 —— 主程序
 (function () {
-  const VERSION = 'v1.6.3';
+  const VERSION = 'v1.7';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
@@ -226,69 +226,123 @@
   }
 
   // ================= 首页 =================
+  // ================= 世界地图（首页） =================
+  const themeOf = (id) => MapArt.ISLANDS.find((t) => t.id === id) || MapArt.ISLANDS[0];
   function showHome() {
     if (outOfFuel()) return showFuelOut();
-    const subjects = [
-      { id: 'math', icon: '🔢', name: '数学闯关', open: true },
-      { id: 'hanzi', icon: '🀄', name: '汉字闯关', open: true },
-      { id: 'idiom', icon: '📜', name: '成语闯关' },
-      { id: 'english', icon: '🔤', name: '英文闯关' },
-    ];
+    const prog = (id) => {
+      const D = S[id], sj = SUBJECTS[id]; if (!D || !sj) return '';
+      const st = Object.values(D.stars).reduce((a, b) => a + b, 0);
+      return `⭐ ${st} · 已过 ${Object.keys(D.stars).length}/${sj.levels.length} 关`;
+    };
     screen(`
-      <header class="bar">
+      <header class="bar world-bar">
         <div class="pill">⭐ ${totalStars()}</div>
-        ${S.limit > 0 ? `<div class="fuel" title="今天的油">⛽<b><i style="width:${fuelLeft() * 100}%"></i></b></div>` : '<div></div>'}
-        <button class="pill" id="garage">🚗 收藏</button>
+        <div class="world-title">Lucas 的探险世界</div>
         <button class="gear" id="gear" aria-label="家长">⚙️</button>
       </header>
-      <h2 class="hello">${S.names.cat}要去抓${S.names.mouse}啦！选一个闯关：</h2>
-      <div class="subjects">
-        ${subjects.map((s) => `<button class="subject ${s.open ? '' : 'locked'}" data-id="${s.id}">
-          <span class="icon">${s.icon}</span><span>${s.name}</span>${s.open ? '' : '<small>即将开放</small>'}</button>`).join('')}
-      </div>`, 'bg-sky');
-    app.querySelectorAll('.subject').forEach((b) => b.onclick = () => {
-      fx.tap();
-      if (SUBJECTS[b.dataset.id]) { cur = SUBJECTS[b.dataset.id]; showMap(); }
-      else say('这个闯关还在建造中，很快就来！');
+      <div class="world">
+        <div class="waves"></div>
+        <span class="cloud c1">☁️</span><span class="cloud c2">☁️</span><span class="cloud c3">☁️</span>
+        <svg class="routes land" viewBox="0 0 100 100" preserveAspectRatio="none"><path vector-effect="non-scaling-stroke" d="M24 32 Q50 6 74 30 Q66 52 50 54 Q34 56 25 74 Q50 98 75 74"/></svg>
+        <svg class="routes port" viewBox="0 0 100 100" preserveAspectRatio="none"><path vector-effect="non-scaling-stroke" d="M30 17 Q74 14 70 39 Q68 54 30 61 Q24 78 70 84"/></svg>
+        ${MapArt.ISLANDS.map((t) => `
+          <button class="isle ${t.open ? '' : 'locked'}" data-id="${t.id}">
+            ${MapArt.island(t)}
+            ${cur.key === t.id ? `<div class="me">${rider('tom', 'happy')}</div>` : ''}
+            <span class="isle-label"><b>${t.name}</b><small>${t.open ? prog(t.id) : t.sub}</small></span>
+            ${t.open ? '' : '<span class="isle-lock">🔒</span>'}
+          </button>`).join('')}
+        <button class="harbor" id="garage">
+          <span class="harbor-art"><span class="ship">🚢</span><span class="dock">⚓</span></span>
+          <span class="isle-label"><b>汽车港口</b><small>🚗 ${S.cars.length}/${VEHICLES.length} 辆</small></span>
+        </button>
+      </div>`, 'bg-ocean');
+    app.querySelectorAll('.isle').forEach((b) => b.onclick = () => {
+      const id = b.dataset.id;
+      if (SUBJECTS[id]) { fx.tap(); cur = SUBJECTS[id]; showMap(); }
+      else { fx.bad(); say(`${themeOf(id).name}还在建造中，很快就能去探险啦！`); }
     });
     $('#garage').onclick = () => { fx.tap(); showGarage(); };
-    redraw = showHome;
     $('#gear').onclick = () => { fx.tap(); parentGate(); };
+    redraw = showHome;
   }
 
-  // ================= 关卡地图 =================
+  // ================= 岛内地图：一关一座城堡 =================
   const levelById = (id) => cur.levels.find((l) => l.id === id);
   const isUnlocked = (id) => id === 1 || (SD().stars[id - 1] || 0) > 0;
   function showMap() {
     if (outOfFuel()) return showFuelOut();
-    const next = cur.levels.find((l) => isUnlocked(l.id) && !SD().stars[l.id]);
+    const t = themeOf(cur.key), D = SD(), lvs = cur.levels;
+    const next = lvs.find((l) => isUnlocked(l.id) && !D.stars[l.id]);
+    const rowH = Math.round(Math.max(130, Math.min(175, Math.min(innerWidth, innerHeight) * 0.24)));
+    const { pts, d, height } = MapArt.trail(lvs.length, rowH, Math.round(rowH * 0.95));
+    const idx = (id) => lvs.findIndex((l) => l.id === id);
+    // 每一站是一块区域（颜色交替）+ 路牌
+    const bands = cur.stations.map((st, si) => {
+      const f = idx(st.levels[0]), l = idx(st.levels[st.levels.length - 1]);
+      const top = si === 0 ? 0 : Math.round((pts[f].y + pts[f - 1].y) / 2);
+      const bottom = si === cur.stations.length - 1 ? height : Math.round((pts[l].y + pts[l + 1].y) / 2);
+      return `<div class="band" style="top:${top}px;height:${bottom - top}px;background:${t.ground[si % 2]}">
+        <span class="sign">${st.name.replace(/^第 (\d+) 站 · /, '<i>第 $1 站</i>')}</span></div>`;
+    }).join('');
+    const deco = pts.map((p, i) => {
+      const x = p.x > 55 ? 14 : p.x < 45 ? 86 : (i % 8 < 4 ? 15 : 85);
+      return `<span class="deco" style="left:${x}%;top:${p.y + (i % 2 ? 10 : -20)}px">${t.deco[i % t.deco.length]}</span>`;
+    }).join('');
+    const nodes = lvs.map((lv, i) => {
+      const p = pts[i], open = isUnlocked(lv.id), st3 = D.stars[lv.id] || 0, isNext = next && next.id === lv.id;
+      return `<button class="castle ${lv.boss ? 'boss' : ''} ${open ? '' : 'locked'} ${st3 ? 'done' : ''} ${isNext ? 'next' : ''}" data-id="${lv.id}" style="left:${p.x}%;top:${p.y}px">
+        ${isNext ? `<span class="me">${rider('tom', 'happy')}</span>` : ''}
+        ${MapArt.castle(t.castle, { boss: lv.boss })}
+        <span class="badge">${open ? (lv.boss ? '王' : lv.id) : '🔒'}</span>
+        <span class="cname">${lv.name}</span>
+        ${open ? `<span class="stars">${starsHtml(st3)}</span>` : ''}
+      </button>`;
+    }).join('');
+    const last = pts[pts.length - 1];
     screen(`
-      <header class="bar">
-        <button class="pill" id="back">◀ 返回</button>
-        <div class="pill">${cur.icon} ${cur.name}</div>
-        <div class="pill">⭐ ${totalStars()}</div>
+      <header class="bar island-bar">
+        <button class="pill" id="back">◀ 世界地图</button>
+        <div class="ribbon">${t.name}</div>
+        <div class="pill">⭐ ${Object.values(D.stars).reduce((a, b) => a + b, 0)}</div>
       </header>
-      <div class="map">
-        ${cur.stations.map((st) => `
-          <section class="station"><h3>${st.name}</h3><div class="nodes">
-          ${st.levels.map((id) => {
-            const lv = levelById(id); if (!lv) return '';
-            const open = isUnlocked(id), st3 = SD().stars[id] || 0;
-            return `<button class="node ${lv.boss ? 'boss' : ''} ${open ? '' : 'locked'} ${next && next.id === id ? 'next' : ''}" data-id="${id}">
-              <span class="num">${open ? (lv.boss ? '👑' : id) : '🔒'}</span>
-              <span class="nm">${lv.name}</span>
-              <span class="stars">${starsHtml(st3)}</span></button>`;
-          }).join('')}
-          </div></section>`).join('')}
-      </div>`, 'bg-grass');
+      <div class="trail" style="height:${height}px">
+        ${bands}
+        <svg class="trail-road" viewBox="0 0 100 ${height}" preserveAspectRatio="none">
+          <path class="road-edge" vector-effect="non-scaling-stroke" d="${d}"/>
+          <path class="road-fill" vector-effect="non-scaling-stroke" d="${d}" style="stroke:${t.road}"/>
+          <path class="road-dash" vector-effect="non-scaling-stroke" d="${d}"/>
+        </svg>
+        ${deco}
+        <span class="start-flag" style="left:${pts[0].x - 22}%;top:${pts[0].y - rowH * 0.12}px">🚩 出发</span>
+        ${nodes}
+        <span class="treasure" style="left:${last.x}%;top:${last.y + rowH * 0.62}px">🎁<small>终点宝藏</small></span>
+      </div>`, 'bg-island');
     $('#back').onclick = () => { fx.tap(); showHome(); };
-    app.querySelectorAll('.node').forEach((b) => b.onclick = () => {
+    app.querySelectorAll('.castle').forEach((b) => b.onclick = () => {
       const id = +b.dataset.id;
-      if (!isUnlocked(id)) { fx.bad(); talk({ clip: 'C05', text: '先通过前面的关卡才能解锁哦' }); return; }
-      fx.tap(); startLevel(levelById(id));
+      if (!isUnlocked(id)) { fx.bad(); b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake'); talk({ clip: 'C05', text: '先通过前面的关卡才能解锁哦' }); return; }
+      fx.tap(); enterCastle(levelById(id));
     });
-    const n = $('.node.next'); if (n) n.scrollIntoView({ block: 'center' });
+    const n = $('.castle.next') || $('.castle.done:last-of-type');
+    if (n) app.scrollTop = Math.max(0, n.offsetTop - app.clientHeight / 2 + 60);
     redraw = showMap;
+  }
+
+  // 进城堡：城堡放大 + 城门打开，然后开始这一关
+  function enterCastle(lv) {
+    if (outOfFuel()) return showFuelOut();
+    const t = themeOf(cur.key);
+    const o = document.createElement('div');
+    o.className = 'enter';
+    o.innerHTML = `<div class="door l"></div><div class="door r"></div>
+      <div class="enter-art">${MapArt.castle(t.castle, { boss: lv.boss })}<div class="enter-title"><small>第 ${lv.id} 关</small>${lv.name}</div></div>`;
+    document.body.appendChild(o);
+    fx.vroom();
+    setTimeout(() => startLevel(lv), 900);
+    setTimeout(() => o.classList.add('open'), 1000);
+    setTimeout(() => o.remove(), 1900);
   }
 
   // ================= 闯关 =================
@@ -561,7 +615,7 @@
       const sEls = m.querySelectorAll('.bigstars span');
       for (let i = 0; i < stars; i++) setTimeout(() => { sEls[i].classList.add('on'); fx.star(i); }, 500 + i * 400);
       $('#again', m).onclick = () => { m.remove(); startLevel(lv); };
-      const nb = $('#next', m); if (nb) nb.onclick = () => { m.remove(); startLevel(next); };
+      const nb = $('#next', m); if (nb) nb.onclick = () => { m.remove(); run = null; enterCastle(next); };
       const hb = $('#home', m); if (hb) hb.onclick = () => { m.remove(); run = null; showMap(); };
       $('#close', m).onclick = () => { fx.tap(); m.remove(); stopVoice(); showMap(); };
       $('#rest', m).onclick = () => { fx.tap(); m.remove(); stopVoice(); showHome(); };
