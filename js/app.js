@@ -1,6 +1,6 @@
 // Lucas 的闯关乐园 —— 主程序
 (function () {
-  const VERSION = 'v1.5.2';
+  const VERSION = 'v1.6';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
@@ -29,6 +29,34 @@
   let S = load();
   // v1.5：时间限制默认取消（老存档里的 20 分钟也改成不限，家长可以在设置里重新打开）
   if (S.limitVer !== 2) { S.limit = 0; S.limitVer = 2; save(); }
+  // 每台设备一个 ID：统计按设备分开记，多设备同步时相加
+  let DEV = null;
+  try { DEV = localStorage.getItem('lucas-game-dev'); if (!DEV) { DEV = Math.random().toString(36).slice(2, 10); localStorage.setItem('lucas-game-dev', DEV); } } catch (e) { DEV = 'dev'; }
+  function migrate() {
+    ['math', 'hanzi'].forEach((k) => {
+      const D = S[k];
+      if (!D.statsBy) { D.statsBy = { [DEV]: D.stats || {} }; delete D.stats; }
+      if (!D.mastered) D.mastered = {};
+      D.review.forEach((r) => { if (!r.at) r.at = 1; });
+    });
+  }
+  migrate(); save();
+  const myStats = (D) => D.statsBy[DEV] || (D.statsBy[DEV] = {});
+  const sumStats = (D) => {
+    const o = {};
+    Object.values(D.statsBy || {}).forEach((m) => { for (const t in m) { o[t] = o[t] || { right: 0, wrong: 0 }; o[t].right += m[t].right; o[t].wrong += m[t].wrong; } });
+    return o;
+  };
+
+  // ---------- 多设备同步 ----------
+  let redraw = null; // 当前页面（首页/地图/车库）的重画函数，同步拿到新进度时用
+  function syncNow() {
+    if (!window.Sync || !Sync.enabled) return Promise.resolve(null);
+    return Sync.sync(() => S, (m) => { S = m; migrate(); save(); }, () => {
+      if (!run && !document.querySelector('.modal') && redraw) redraw();
+    });
+  }
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !run) syncNow(); });
 
   // ================= 声音：朗读 + 音效 =================
   let zhVoice = null;
@@ -150,6 +178,7 @@
   const SD = () => S[cur.key];
 
   function screen(html, cls = '') {
+    redraw = null;
     app.className = cls; app.innerHTML = html;
     window.scrollTo(0, 0);
   }
@@ -181,6 +210,7 @@
     $('#go').onclick = () => {
       started = true; audio(); fx.win();
       loadVoices();
+      syncNow();
       setTimeout(() => talk({ clip: 'C01', text: `Lucas，欢迎来到闯关乐园！帮${S.names.cat}抓住${S.names.mouse}吧！` }), 400);
       showHome();
     };
@@ -213,6 +243,7 @@
       else say('这个闯关还在建造中，很快就来！');
     });
     $('#garage').onclick = () => { fx.tap(); showGarage(); };
+    redraw = showHome;
     $('#gear').onclick = () => { fx.tap(); parentGate(); };
   }
 
@@ -248,6 +279,7 @@
       fx.tap(); startLevel(levelById(id));
     });
     const n = $('.node.next'); if (n) n.scrollIntoView({ block: 'center' });
+    redraw = showMap;
   }
 
   // ================= 闯关 =================
@@ -371,14 +403,15 @@
     const v = btn.dataset.v;
     const right = String(q.answer) === v;
     const D = S[run.subj.key], isMath = run.subj.key === 'math';
-    const stats = D.stats[q.type] || (D.stats[q.type] = { right: 0, wrong: 0 });
+    const ms = myStats(D);
+    const stats = ms[q.type] || (ms[q.type] = { right: 0, wrong: 0 });
     if (right) {
       run.locked = true;
       btn.classList.add('right'); fx.ok();
       const first = run.wrongThis === 0;
       if (first) stats.right++;
       if (isMath && !q.isReview) adapt(q.type, run.lv, first);
-      if (first && q.isReview) D.review = D.review.filter((r) => r.key !== q.key);
+      if (first && q.isReview) { D.review = D.review.filter((r) => r.key !== q.key); D.mastered[q.key] = Date.now(); }
       const praised = talk({ clip: VOICE.praise, text: pick(PRAISE) });
       run.i++; moveTom();
       $('#tom .actor').classList.add('zoom');
@@ -393,7 +426,7 @@
         run.wrong++; stats.wrong++;
         if (isMath && !q.isReview) adapt(q.type, run.lv, false);
         if (!D.review.some((r) => r.key === q.key)) {
-          D.review.push(isMath ? { type: q.type, d: q.d, p: q.p, key: q.key } : { type: q.type, c: q.c, key: q.key });
+          D.review.push(isMath ? { type: q.type, d: q.d, p: q.p, key: q.key, at: Date.now() } : { type: q.type, c: q.c, key: q.key, at: Date.now() });
           if (D.review.length > 30) D.review.shift();
         }
         D.wrongLog.unshift({ t: q.log || q.text, a: q.answer, pick: v, at: Date.now() });
@@ -491,7 +524,7 @@
     // 任何科目第一次通关一关，就收集下一辆车
     let newCar = null;
     if (firstClear) { newCar = VEHICLES.find((v) => !S.cars.includes(v.id)) || null; if (newCar) S.cars.push(newCar.id); }
-    save();
+    save(); syncNow();
     // 抓住动画
     moveTom(true);
     $('#jerry').innerHTML = rider('jerry', 'dizzy');
@@ -544,6 +577,7 @@
       if (!S.cars.includes(v.id)) { fx.bad(); talk({ clip: 'C06', text: '这辆车还没解锁，继续闯关就能得到！' }); return; }
       fx.vroom(); say(v.name + '！');
     });
+    redraw = showGarage;
   }
 
   // ================= 没油了 =================
@@ -567,15 +601,24 @@
     $('#cancel', m).onclick = () => m.remove();
     $('#ok', m).onclick = () => { if (+$('#pa', m).value === a * b) { m.remove(); showParent(); } else { $('#pa', m).value = ''; $('#pa', m).placeholder = '不对，再试一次'; } };
   }
+  function syncStatus() {
+    if (!window.Sync) return '同步功能还在加载，请关掉游戏重新打开。';
+    if (!Sync.enabled) return '未开启：现在每台设备的进度是分开的。';
+    const l = Sync.last;
+    if (!l) return '已开启，还没同步过。';
+    const t = new Date(l.at), hm = `${t.getMonth() + 1}月${t.getDate()}日 ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
+    if (l.ok) return `✅ 已开启 · 上次同步 ${hm}`;
+    return /密钥/.test(l.err) ? `❌ ${l.err}：请点“断开同步”后重新粘贴正确的密钥` : `⚠️ 上次同步失败（${l.err}，${hm}），联网后会自动再试`;
+  }
   function showParent() {
-    const st = S.math.stats;
+    const st = sumStats(S.math), hst = sumStats(S.hanzi);
     const rows = Object.keys(MathGen.NAMES).map((t) => {
       const s = st[t] || { right: 0, wrong: 0 }, all = s.right + s.wrong;
       return `<tr><td>${MathGen.NAMES[t]}</td><td>${all}</td><td>${all ? Math.round(s.right / all * 100) + '%' : '-'}</td><td>${S.math.diff[t] || '-'}</td></tr>`;
     }).join('');
     const log = S.math.wrongLog.slice(0, 12).map((w) => `<li>${w.t.includes('?') ? w.t.replace('?', w.a) : w.t + ' → ' + w.a} <small>（选了 ${w.pick}）</small></li>`).join('') || '<li>暂无</li>';
     const hzRows = Object.keys(HanziGen.NAMES).map((t) => {
-      const x = S.hanzi.stats[t] || { right: 0, wrong: 0 }, all = x.right + x.wrong;
+      const x = hst[t] || { right: 0, wrong: 0 }, all = x.right + x.wrong;
       return `<tr><td>${HanziGen.NAMES[t]}</td><td>${all}</td><td>${all ? Math.round(x.right / all * 100) + '%' : '-'}</td></tr>`;
     }).join('');
     const hzLog = S.hanzi.wrongLog.slice(0, 12).map((w) => `<li>${w.t} <small>（选了 ${w.pick}）</small></li>`).join('') || '<li>暂无</li>';
@@ -591,6 +634,13 @@
           ${avatar ? '<button class="mini" id="noPhoto">去掉照片</button>' : ''}
           ${avatar !== AVATAR_DEFAULT ? '<button class="mini" id="defPhoto">用回默认照片</button>' : ''}
           <p class="note">默认是游戏里自带的 Lucas 照片。在这里换的照片只保存在这台设备上。</p></div></div></section>
+        <section><h3>多设备同步</h3>
+          <p id="syncStat">${syncStatus()}</p>
+          ${window.Sync && Sync.enabled
+            ? `<button class="mini" id="syncNow">🔄 立即同步</button> <button class="mini" id="syncCopy">📋 复制同步密钥（发给另一台设备）</button> <button class="mini" id="syncOff">断开同步</button>`
+            : `<label>同步密钥：<input id="syncTok" type="password" placeholder="粘贴 github_pat_ 开头的密钥" style="width:min(60vw,360px)"></label> <button class="mini" id="syncSave">保存并同步</button>
+               <p class="note">iPhone、iPad、电脑都粘贴同一把密钥，进度就会自动合并。没网时照常玩，联网后自动同步。</p>`}
+        </section>
         <section><h3>声音</h3>
           <label><input type="checkbox" id="mom" ${S.momVoice === false ? '' : 'checked'}> 用妈妈的录音（夸奖、鼓励、通关等），关掉就全部用机器朗读</label></section>
         <section><h3>每天时长</h3>
@@ -608,10 +658,23 @@
         <section><h3>危险操作</h3><button class="mini danger" id="wipe">清空全部进度</button></section>
       </div>`, 'bg-plain');
     $('#back').onclick = () => {
-      S.names.cat = $('#ncat').value.trim() || '汤姆';
-      S.names.mouse = $('#nmouse').value.trim() || '杰瑞';
-      S.limit = +$('#limit').value; S.momVoice = $('#mom').checked; save(); showHome();
+      const before = JSON.stringify([S.names, S.limit, S.momVoice]);
+      S.names = { cat: $('#ncat').value.trim() || '汤姆', mouse: $('#nmouse').value.trim() || '杰瑞' };
+      S.limit = +$('#limit').value; S.momVoice = $('#mom').checked;
+      if (JSON.stringify([S.names, S.limit, S.momVoice]) !== before) S.setAt = Date.now();
+      save(); syncNow(); showHome();
     };
+    const st2 = () => { const e = $('#syncStat'); if (e) e.textContent = syncStatus(); };
+    const ss = $('#syncSave'); if (ss) ss.onclick = async () => {
+      const t = $('#syncTok').value.trim(); if (!t) return;
+      Sync.setToken(t); $('#syncStat').textContent = '正在连接…';
+      const r = await syncNow(); if (r && r.ok) showParent(); else { st2(); }
+    };
+    const sn = $('#syncNow'); if (sn) sn.onclick = async () => { $('#syncStat').textContent = '正在同步…'; await syncNow(); showParent(); };
+    const sc = $('#syncCopy'); if (sc) sc.onclick = async () => {
+      try { await navigator.clipboard.writeText(Sync.token); sc.textContent = '✅ 已复制'; } catch (e) { prompt('长按复制下面的密钥：', Sync.token); }
+    };
+    const so = $('#syncOff'); if (so) so.onclick = () => { Sync.clear(); showParent(); };
     $('#photo').onchange = (e) => { const f = e.target.files[0]; if (f) cropPhoto(f); };
     const np = $('#noPhoto'); if (np) np.onclick = () => { avatar = null; try { localStorage.setItem(AVATAR_KEY, 'none'); } catch (e) { } showParent(); };
     const dp = $('#defPhoto'); if (dp) dp.onclick = () => { avatar = AVATAR_DEFAULT; try { localStorage.removeItem(AVATAR_KEY); } catch (e) { } showParent(); };
@@ -619,7 +682,7 @@
     $('#wipe').onclick = () => {
       const m = modal(`<p>确定清空所有星星、车库和记录吗？不能恢复。</p><div class="row"><button class="big ghost" id="no">取消</button><button class="big danger" id="yes">清空</button></div>`);
       $('#no', m).onclick = () => m.remove();
-      $('#yes', m).onclick = () => { m.remove(); S = DEFAULT(); save(); showParent(); };
+      $('#yes', m).onclick = () => { m.remove(); S = DEFAULT(); S.limitVer = 2; migrate(); save(); if (window.Sync) Sync.overwrite(S); showParent(); };
     };
   }
 
