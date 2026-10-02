@@ -1,6 +1,6 @@
 // Lucas 的闯关乐园 —— 主程序
 (function () {
-  const VERSION = 'v1.6.2';
+  const VERSION = 'v1.6.3';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
@@ -56,7 +56,11 @@
       if (!run && !document.querySelector('.modal') && redraw) redraw();
     });
   }
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !run) syncNow(); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return;
+    if (ac) audio(); // 切回前台时唤醒声音
+    if (!run) syncNow();
+  });
 
   // ================= 声音：朗读 + 音效 =================
   let zhVoice = null;
@@ -105,8 +109,13 @@
     if (!b || !c || S.momVoice === false) return null;
     return new Promise((res) => {
       const src = c.createBufferSource(); src.buffer = b; src.connect(c.destination);
-      src.onended = () => { if (curSrc === src) curSrc = null; res(); };
-      curSrc = src; src.start();
+      let done = false;
+      const fin = () => { if (done) return; done = true; if (curSrc === src) curSrc = null; res(); };
+      src.onended = fin;
+      // 保险：声音系统被 iOS 暂停时 onended 不会触发，按录音长度超时继续，游戏不会卡住
+      setTimeout(fin, (b.duration + 0.6) * 1000);
+      curSrc = src;
+      try { src.start(); } catch (e) { fin(); }
     });
   }
   // 依次播放：字符串 = 机器朗读；{ clip: 名字或名字数组, text: 兜底文字 } = 录音
@@ -126,7 +135,7 @@
   let ac = null;
   // iOS 17+：让声音不受静音键影响
   try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { }
-  function audio() { if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { } } if (ac && ac.state === 'suspended') ac.resume(); return ac; }
+  function audio() { if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { } } if (ac && ac.state !== 'running' && ac.state !== 'closed') ac.resume().catch(() => { }); return ac; }
   function tone(freq, dur, type = 'sine', vol = 0.18, when = 0, slide = 0) {
     const c = audio(); if (!c) return;
     const t = c.currentTime + when, o = c.createOscillator(), g = c.createGain();
@@ -418,7 +427,8 @@
       setTimeout(() => { const r = $('#tom .actor'); if (r) r.classList.remove('zoom'); }, 600);
       save();
       const go = () => { if (run) { run.locked = false; nextQ(); } };
-      if (q.learn) Promise.all([praised, new Promise((r) => setTimeout(r, 700))]).then(() => { if (run && run.q === q) showLearn(q.learn, go); });
+      // 等夸奖说完再弹学习卡，但最多等 2.5 秒
+      if (q.learn) Promise.all([Promise.race([praised, new Promise((r) => setTimeout(r, 2500))]), new Promise((r) => setTimeout(r, 700))]).then(() => { if (run && run.q === q) showLearn(q.learn, go); });
       else setTimeout(go, 1300);
     } else {
       btn.classList.add('wrong'); btn.disabled = true; fx.bad();

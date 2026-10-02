@@ -1,5 +1,5 @@
 // 离线缓存：每次更新内容时把 VERSION 改一下，设备联网打开后会自动换成新版
-const VERSION = 'lucas-v1.6.2';
+const VERSION = 'lucas-v1.6.3';
 const FILES = [
   './', 'index.html', 'manifest.webmanifest', 'css/style.css',
   'content/math-levels.js', 'content/hanzi.js', 'js/hanzi.js', 'fonts/kai.woff2', 'js/characters.js', 'js/math.js', 'js/sync.js', 'js/app.js',
