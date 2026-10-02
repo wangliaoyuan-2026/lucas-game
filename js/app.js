@@ -1,6 +1,6 @@
 // Lucas 的闯关乐园 —— 主程序
 (function () {
-  const VERSION = 'v1.4';
+  const VERSION = 'v1.5';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
@@ -10,7 +10,7 @@
   const KEY = 'lucas-game-v1';
   const DEFAULT = () => ({
     names: { cat: '汤姆', mouse: '杰瑞' },
-    limit: 20,
+    limit: 0,
     today: { date: '', sec: 0 },
     car: 'car',
     cars: ['car'],
@@ -27,6 +27,8 @@
   function load() { try { return merge(DEFAULT(), JSON.parse(localStorage.getItem(KEY) || 'null')); } catch (e) { return DEFAULT(); } }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { } }
   let S = load();
+  // v1.5：时间限制默认取消（老存档里的 20 分钟也改成不限，家长可以在设置里重新打开）
+  if (S.limitVer !== 2) { S.limit = 0; S.limitVer = 2; save(); }
 
   // ================= 声音：朗读 + 音效 =================
   let zhVoice = null;
@@ -121,7 +123,8 @@
   const fuelLeft = () => (S.limit > 0 ? Math.max(0, 1 - S.today.sec / (S.limit * 60)) : 1);
   let started = false;
   setInterval(() => {
-    if (!started || document.visibilityState !== 'visible') return;
+    // 只统计真正在闯关的时间（首页、地图、家长设置不算）
+    if (!started || !run || document.visibilityState !== 'visible') return;
     ensureToday(); S.today.sec++;
     if (S.today.sec % 10 === 0) save();
     const f = $('.fuel i'); if (f) f.style.width = (fuelLeft() * 100) + '%';
@@ -203,7 +206,7 @@
     screen(`
       <header class="bar">
         <div class="pill">⭐ ${totalStars()}</div>
-        <div class="fuel" title="今天的油">⛽<b><i style="width:${fuelLeft() * 100}%"></i></b></div>
+        ${S.limit > 0 ? `<div class="fuel" title="今天的油">⛽<b><i style="width:${fuelLeft() * 100}%"></i></b></div>` : '<div></div>'}
         <button class="pill" id="garage">🚗 收藏</button>
         <button class="gear" id="gear" aria-label="家长">⚙️</button>
       </header>
