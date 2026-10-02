@@ -63,7 +63,8 @@
     busy = (async () => {
       try {
         const r = await fetchT(API, { headers: headers() });
-        if (r.status === 401 || r.status === 403 || r.status === 404) throw new Error('密钥无效或没有 Gist 权限');
+        if (r.status === 401) throw new Error('密钥无效（可能复制不完整或已过期）');
+        if (r.status === 403 || r.status === 404) throw new Error('密钥没有 Gist 权限');
         if (!r.ok) throw new Error('网络错误 ' + r.status);
         const g = await r.json();
         let remote = {};
@@ -74,7 +75,7 @@
         if (changed) set(merged);
         if (strip(merged) !== strip(remote)) {
           const p = await fetchT(API, { method: 'PATCH', headers: { ...headers(), 'Content-Type': 'application/json' }, body: JSON.stringify({ files: { [FILE]: { content: JSON.stringify(merged) } } }) });
-          if (!p.ok) throw new Error(p.status === 403 || p.status === 404 ? '密钥没有写入 Gist 的权限' : '上传失败 ' + p.status);
+          if (!p.ok) throw new Error(p.status === 401 ? '密钥无效（可能复制不完整或已过期）' : p.status === 403 || p.status === 404 ? '密钥没有写入 Gist 的权限' : '上传失败 ' + p.status);
         }
         cfg.last = { ok: true, at: Date.now() }; saveCfg();
         if (changed && onChanged) onChanged();

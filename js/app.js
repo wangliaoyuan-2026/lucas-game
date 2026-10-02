@@ -1,6 +1,6 @@
 // Lucas 的闯关乐园 —— 主程序
 (function () {
-  const VERSION = 'v1.6';
+  const VERSION = 'v1.6.2';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
@@ -608,7 +608,7 @@
     if (!l) return '已开启，还没同步过。';
     const t = new Date(l.at), hm = `${t.getMonth() + 1}月${t.getDate()}日 ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
     if (l.ok) return `✅ 已开启 · 上次同步 ${hm}`;
-    return /密钥/.test(l.err) ? `❌ ${l.err}：请点“断开同步”后重新粘贴正确的密钥` : `⚠️ 上次同步失败（${l.err}，${hm}），联网后会自动再试`;
+    return /密钥/.test(l.err) ? `❌ ${l.err}：请点下面的“断开同步”，再重新粘贴正确的密钥` : `⚠️ 上次同步失败（${l.err}，${hm}），联网后会自动再试`;
   }
   function showParent() {
     const st = sumStats(S.math), hst = sumStats(S.hanzi);
@@ -668,7 +668,11 @@
     const ss = $('#syncSave'); if (ss) ss.onclick = async () => {
       const t = $('#syncTok').value.trim(); if (!t) return;
       Sync.setToken(t); $('#syncStat').textContent = '正在连接…';
-      const r = await syncNow(); if (r && r.ok) showParent(); else { st2(); }
+      const r = await syncNow();
+      if (r && r.ok) return showParent();
+      // 密钥不对：清掉，方便直接重新粘贴；网络问题：保留密钥，联网后自动重试
+      if (r && /密钥/.test(r.err)) { const err = r.err; Sync.clear(); $('#syncStat').textContent = /无效/.test(err) ? `❌ ${err}。请重新完整复制 github_pat_ 开头的整串密钥再粘贴。` : `❌ ${err}。请到 GitHub 把这把密钥的 Gists 权限改成 Read and write，再重新粘贴。`; $('#syncTok').value = ''; }
+      else showParent();
     };
     const sn = $('#syncNow'); if (sn) sn.onclick = async () => { $('#syncStat').textContent = '正在同步…'; await syncNow(); showParent(); };
     const sc = $('#syncCopy'); if (sc) sc.onclick = async () => {
