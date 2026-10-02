@@ -29,7 +29,7 @@ button { font-family: inherit; color: inherit; border: 0; cursor: pointer; touch
 .bar { display: flex; align-items: center; justify-content: space-between; gap: 2vmin; padding: 2vmin 3vmin; }
 .pill { background: #fff; border-radius: 99px; padding: 1.4vmin 3vmin; font-size: max(16px, 3.6vmin); font-weight: 700; box-shadow: 0 0.6vmin 0 rgba(0, 0, 0, .12); white-space: nowrap; }
 .gear { background: rgba(255, 255, 255, .6); border-radius: 50%; width: 9vmin; height: 9vmin; min-width: 44px; min-height: 44px; font-size: 4.5vmin; transition: transform 2s; }
-.gear.pressing { transform: rotate(360deg) scale(1.2); }
+.gear { -webkit-touch-callout: none; }
 .big { background: var(--orange); color: #fff; font-size: max(20px, 5vmin); font-weight: 800; padding: 2.4vmin 6vmin; border-radius: 99px; box-shadow: 0 1vmin 0 var(--orange-d); }
 .big:active { transform: translateY(0.6vmin); box-shadow: 0 0.4vmin 0 var(--orange-d); }
 .big.ghost { background: #fff; color: var(--orange-d); box-shadow: 0 1vmin 0 #e3d6c8; }

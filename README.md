@@ -13,7 +13,7 @@
 - `sw.js` 离线缓存——**每次更新内容都要改 VERSION**，设备联网打开后会自动换新版
 
 ## 家长入口
-长按右上角 ⚙️ 两秒，答对一道乘法题即可进入：改角色名字、设每天时长、看错题统计。
+点 ⚙️，答对一道两位数乘两位数的题即可进入：改角色名字、设每天时长、看错题统计。
 
 ## 素材授权
 - 猫、老鼠动画：[Google Noto Animated Emoji](https://googlefonts.github.io/noto-emoji-animation/)，CC BY 4.0

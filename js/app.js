@@ -1,6 +1,6 @@
 // Lucas 的闯关乐园 —— 主程序
 (function () {
-  const VERSION = 'v1.5';
+  const VERSION = 'v1.5.1';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
@@ -168,14 +168,6 @@
     document.body.appendChild(box); setTimeout(() => box.remove(), 4500);
   }
 
-  // 长按触发（家长入口）
-  function longPress(el, ms, fn) {
-    let t = null;
-    const start = (e) => { e.preventDefault(); el.classList.add('pressing'); t = setTimeout(() => { el.classList.remove('pressing'); fn(); }, ms); };
-    const end = () => { clearTimeout(t); el.classList.remove('pressing'); };
-    el.addEventListener('pointerdown', start); ['pointerup', 'pointerleave', 'pointercancel'].forEach((ev) => el.addEventListener(ev, end));
-  }
-
   // ================= 开始页 =================
   function showSplash() {
     const standalone = window.navigator.standalone || matchMedia('(display-mode: standalone)').matches;
@@ -221,8 +213,7 @@
       else say('这个闯关还在建造中，很快就来！');
     });
     $('#garage').onclick = () => { fx.tap(); showGarage(); };
-    longPress($('#gear'), 2000, parentGate);
-    $('#gear').onclick = () => say('这是爸爸妈妈的按钮哦');
+    $('#gear').onclick = () => { fx.tap(); parentGate(); };
   }
 
   // ================= 关卡地图 =================
@@ -561,7 +552,7 @@
         <button class="gear" id="gear" aria-label="家长">⚙️</button>
       </div>`, 'bg-night');
     talk({ clip: 'C04', text: `今天的油用完啦，${S.names.cat}要睡觉了，明天再来吧！` });
-    longPress($('#gear'), 2000, parentGate);
+    $('#gear').onclick = () => { fx.tap(); parentGate(); };
   }
 
   // ================= 家长 =================
@@ -681,6 +672,17 @@
   showSplash();
 
   if ('serviceWorker' in navigator && location.protocol !== 'file:' && location.hostname !== 'localhost') {
-    navigator.serviceWorker.register('sw.js').catch(() => { });
+    // 有新版本时：新版接管后自动刷新一次（正在闯关时等这一关结束后再刷新），不用再关掉重开
+    const hadController = !!navigator.serviceWorker.controller;
+    let reloading = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!hadController || reloading) return;
+      const tryReload = () => { if (run) return setTimeout(tryReload, 3000); reloading = true; location.reload(); };
+      tryReload();
+    });
+    navigator.serviceWorker.register('sw.js').then((reg) => {
+      // 每次回到前台都检查一下有没有新版
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') reg.update().catch(() => { }); });
+    }).catch(() => { });
   }
 })();
