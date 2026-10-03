@@ -173,7 +173,7 @@ button { font-family: inherit; color: inherit; border: 0; cursor: pointer; touch
 .bigstars span.on { color: #ffb400; transform: scale(1.2) rotate(-8deg); }
 .meta { opacity: .6; font-size: max(14px, 3vmin); }
 .newcar { background: #fff4d6; border-radius: 3vmin; padding: 2vmin; display: flex; align-items: center; justify-content: center; gap: 2vmin; }
-.newcar span { font-size: max(40px, 10vmin); display: inline-block; transform: scaleX(-1); animation: bob 1s infinite; }
+.newcar .veh-art { font-size: max(40px, 10vmin); display: inline-block; transform: scaleX(-1); animation: bob 1s infinite; }
 .confetti { position: fixed; inset: 0; pointer-events: none; z-index: 60; overflow: hidden; }
 .confetti span { position: absolute; top: -10vmin; animation: fall 3s ease-in forwards; }
 @keyframes fall { to { transform: translateY(115vh) rotate(540deg); } }
@@ -282,7 +282,7 @@ button { font-family: inherit; color: inherit; border: 0; cursor: pointer; touch
   .cage .actor { --s: 12vmin; }
   .bigstars span { font-size: max(36px, 7.5vmin); }
   .newcar { padding: 1.2vmin 2vmin; }
-  .newcar span { font-size: max(32px, 7vmin); }
+  .newcar .veh-art { font-size: max(40px, 10vmin); display: inline-block; transform: scaleX(-1); animation: bob 1s infinite; }
   .modal .meta { margin: 1vmin 0; }
 }
 
@@ -400,3 +400,79 @@ button { font-family: inherit; color: inherit; border: 0; cursor: pointer; touch
 .enter.open .enter-art { opacity: 0; transform: scale(1.4); }
 .world { overflow: hidden; }
 .enter .door { z-index: 1; } .enter-art { z-index: 2; }
+
+/* =================== 英文 =================== */
+:root { --en: "Chalkboard SE", "Avenir Next Rounded", "Arial Rounded MT Bold", "Comic Sans MS", var(--font); }
+.qtext.en-big { font-family: var(--en); font-size: max(72px, 17vmin); line-height: 1; color: #1e88e5; }
+.qtext.en-word { font-family: var(--en); font-size: max(48px, 13vmin); letter-spacing: .06em; }
+.qtext.en-sent { font-family: var(--en); font-size: max(28px, 7.4vmin); white-space: normal; line-height: 1.35; font-weight: 700; }
+.qcard.has-hint .qtext.en-big { font-size: max(56px, 14vmin); }
+.qcard.has-hint .qtext.en-word { font-size: max(34px, 9vmin); }
+.qcard.has-hint .qtext.en-sent { font-size: max(22px, 5.4vmin); }
+.en-strip { font-family: var(--en); font-size: max(26px, 6.4vmin); letter-spacing: .08em; }
+.en-sent { font-family: var(--en); font-size: max(22px, 5.4vmin); font-weight: 700; }
+.choices.en .choice b { font-family: var(--en); font-size: max(48px, 13vmin); font-weight: 700; }
+.choices.enw .choice b { font-family: var(--en); font-size: max(24px, 6.4vmin); font-weight: 700; }
+.choices.enw .choice .ce { font-style: normal; font-size: max(30px, 7.5vmin); line-height: 1; }
+.choices.en .choice, .choices.enw .choice { min-height: max(84px, 19vmin); }
+
+/* 排词成句 */
+.slots { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: center; gap: 1.6vmin; min-height: max(56px, 12vmin); padding: 1vmin; border-radius: 3vmin; }
+.slots .slot { min-width: max(56px, 13vmin); height: max(48px, 10vmin); border-bottom: .8vmin solid #c9b8a3; display: inline-flex; align-items: center; justify-content: center; font-family: var(--en); font-size: max(22px, 6vmin); font-weight: 700; background: none; padding: 0 1.4vmin; }
+.slots .slot.full { background: #fff3cd; border-radius: 2vmin 2vmin 0 0; border-bottom-color: var(--orange); }
+.slots .punct { font-family: var(--en); font-size: max(28px, 7vmin); font-weight: 700; }
+.slots.wrong { animation: shake .4s; background: #ffe5e3; }
+.slots.right { background: #dff5e6; }
+.choices.tiles { display: flex; flex-wrap: wrap; justify-content: center; gap: 2vmin; }
+.choice.tile { min-height: max(60px, 13vmin); min-width: max(84px, 19vmin); padding: 0 3vmin; font-family: var(--en); font-size: max(24px, 6.4vmin); font-weight: 700; }
+.choice.tile.used { visibility: hidden; }
+
+/* 英文学习卡 */
+.lc-en { background: none; font-family: var(--en); font-size: max(48px, 13vmin); font-weight: 700; color: #1e88e5; line-height: 1.1; padding: 0; }
+.lc-en.sent { font-size: max(26px, 6.6vmin); max-width: 70vw; }
+.lc-zh { font-size: max(20px, 5vmin); color: #8a7f72; text-align: center; margin-top: 1vmin; }
+.learn-en .lc-sent { font-family: var(--en); font-weight: 700; display: flex; flex-direction: column; align-items: center; gap: .6vmin; }
+.learn-en .lc-sent small { font-family: var(--font); font-weight: 400; font-size: .7em; color: #8a7f72; }
+.learn-en .lc-sent em { color: #e53935; font-style: normal; }
+
+/* =================== 奖励：明信片、冰箱贴 =================== */
+.postcard { --bg: #fffde7; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; width: max(130px, 26vmin); aspect-ratio: 3 / 2.2; background: var(--bg); border: max(4px, .8vmin) solid #fff; border-radius: 1.4vmin; box-shadow: 0 1vmin 1.6vmin rgba(0, 0, 0, .18), inset 0 0 0 2px rgba(0, 0, 0, .06); transform: rotate(-2deg); padding: 1vmin; }
+.postcard .stamp { position: absolute; top: 6%; right: 6%; width: 22%; aspect-ratio: 1; display: grid; place-items: center; font-size: max(12px, 2.6vmin); background: #fff; border: 2px dashed #e57373; border-radius: 4px; }
+.postcard .pc-e { font-size: max(44px, 10vmin); line-height: 1; }
+.postcard .pc-name { font-weight: 800; font-size: max(15px, 3.4vmin); color: #4e342e; }
+.postcard .pc-home { font-size: max(11px, 2.3vmin); color: #8a7f72; }
+.postcard.sm { width: max(96px, 18vmin); }
+.postcard.sm .pc-e { font-size: max(32px, 7vmin); }
+.magnet { --c: #ef5350; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; width: max(110px, 22vmin); aspect-ratio: 1; border-radius: 30% 30% 34% 34% / 28% 28% 38% 38%; background: radial-gradient(circle at 30% 25%, rgba(255, 255, 255, .55), transparent 40%), var(--c); border: max(4px, .8vmin) solid #fff; box-shadow: 0 1.2vmin 0 rgba(0, 0, 0, .18), inset 0 -1.4vmin 0 rgba(0, 0, 0, .12); color: #fff; }
+.magnet .mg-flag { position: absolute; top: 6%; left: 8%; font-size: max(14px, 3vmin); }
+.magnet .mg-e { font-size: max(44px, 10vmin); line-height: 1; filter: drop-shadow(0 .5vmin .3vmin rgba(0, 0, 0, .25)); }
+.magnet .mg-place { font-weight: 800; font-size: max(14px, 3.2vmin); text-shadow: 0 .3vmin 0 rgba(0, 0, 0, .25); }
+.magnet .mg-name { font-size: max(11px, 2.3vmin); opacity: .95; }
+.magnet.sm { width: max(84px, 16vmin); }
+.magnet.sm .mg-e { font-size: max(30px, 7vmin); }
+.veh-art { font-size: max(44px, 10vmin); display: inline-block; transform: scaleX(-1); }
+.newcar { flex-wrap: wrap; }
+
+/* 收藏册 */
+.tabs { display: flex; gap: 2vmin; justify-content: center; padding: 1vmin 3vmin; flex-wrap: wrap; }
+.tab { background: rgba(255, 255, 255, .6); border-radius: 99px; padding: 1.4vmin 3.4vmin; font-size: max(15px, 3.4vmin); font-weight: 700; }
+.tab small { background: #fff; border-radius: 99px; padding: 0 1.4vmin; margin-left: .6vmin; }
+.tab.on { background: #fff; box-shadow: 0 .8vmin 0 rgba(0, 0, 0, .1); color: var(--orange-d); }
+.hello.small { font-size: max(14px, 3.2vmin); opacity: .8; }
+.shelf { display: grid; grid-template-columns: repeat(auto-fill, minmax(max(140px, 28vmin), 1fr)); gap: 3vmin; padding: 2vmin 4vmin 8vmin; justify-items: center; }
+.shelf.math { grid-template-columns: repeat(auto-fill, minmax(max(110px, 20vmin), 1fr)); }
+.shelf .item { background: none; padding: 0; display: flex; flex-direction: column; align-items: center; gap: 1vmin; }
+.shelf.math .item { background: #fff; border-radius: 4vmin; padding: 3vmin 1vmin; width: 100%; box-shadow: 0 1vmin 0 rgba(0, 0, 0, .1); font-weight: 700; font-size: max(14px, 3vmin); }
+.shelf.math .item.locked { color: #999; }
+.shelf .item:nth-child(2n) .postcard { transform: rotate(2deg); }
+.mystery { display: grid; place-items: center; width: max(110px, 22vmin); aspect-ratio: 1.2; border-radius: 3vmin; border: .6vmin dashed rgba(0, 0, 0, .15); background: rgba(255, 255, 255, .45); font-size: max(36px, 8vmin); color: rgba(0, 0, 0, .2); font-weight: 800; }
+.shelf.math .mystery { border: 0; background: none; width: auto; aspect-ratio: auto; }
+.qcard.en .pic, .qcard.enw .pic, .qcard.order .pic { font-size: max(36px, 8vmin); line-height: 1; }
+.qtext.en-word { font-size: max(40px, 10vmin); }
+.choices.en .choice, .choices.enw .choice { min-height: max(72px, 15vmin); }
+.choices.enw .choice b { font-size: max(22px, 5.6vmin); }
+.choices.en .choice b { font-size: max(40px, 10vmin); }
+
+.newcar { gap: 3vmin; }
+.newcar > span:last-child { font-size: max(16px, 3.8vmin); }
+.newcar .postcard, .newcar .magnet { animation: bob 1.4s ease-in-out infinite; }

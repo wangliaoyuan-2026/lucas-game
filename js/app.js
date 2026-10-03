@@ -1,6 +1,6 @@
 // Lucas 的闯关乐园 —— 主程序
 (function () {
-  const VERSION = 'v1.7';
+  const VERSION = 'v1.8';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
@@ -16,6 +16,9 @@
     cars: ['car'],
     math: { stars: {}, diff: {}, up: {}, down: {}, review: [], stats: {}, wrongLog: [] },
     hanzi: { stars: {}, review: [], stats: {}, wrongLog: [] },
+    english: { stars: {}, review: [], stats: {}, wrongLog: [] },
+    cards: [],    // 汉字奖励：动物明信片
+    magnets: [],  // 英文奖励：冰箱贴
   });
   function merge(base, over) {
     if (over === undefined || over === null) return base;
@@ -33,14 +36,17 @@
   let DEV = null;
   try { DEV = localStorage.getItem('lucas-game-dev'); if (!DEV) { DEV = Math.random().toString(36).slice(2, 10); localStorage.setItem('lucas-game-dev', DEV); } } catch (e) { DEV = 'dev'; }
   function migrate() {
-    ['math', 'hanzi'].forEach((k) => {
+    ['math', 'hanzi', 'english'].forEach((k) => {
       const D = S[k];
       if (!D.statsBy) { D.statsBy = { [DEV]: D.stats || {} }; delete D.stats; }
       if (!D.mastered) D.mastered = {};
       D.review.forEach((r) => { if (!r.at) r.at = 1; });
     });
   }
-  migrate(); save();
+  migrate();
+  // v1.8：奖励按科目分开。以前汉字关也送车（车保留），按已通过的汉字关数补发明信片
+  if (!S.rewardVer) { S.cards = POSTCARDS.slice(0, Object.keys(S.hanzi.stars).length).map((c) => c.id); S.rewardVer = 1; }
+  save();
   const myStats = (D) => D.statsBy[DEV] || (D.statsBy[DEV] = {});
   const sumStats = (D) => {
     const o = {};
@@ -63,20 +69,24 @@
   });
 
   // ================= 声音：朗读 + 音效 =================
-  let zhVoice = null;
+  let zhVoice = null, enVoice = null;
   function pickVoice() {
     if (!('speechSynthesis' in window)) return;
     const vs = speechSynthesis.getVoices();
+    enVoice = vs.find((v) => /en[-_]US/i.test(v.lang) && /Samantha|Ava|Allison|Susan/i.test(v.name))
+      || vs.find((v) => /en[-_]US/i.test(v.lang)) || vs.find((v) => /^en/i.test(v.lang)) || null;
     zhVoice = vs.find((v) => /zh[-_]CN/i.test(v.lang) && /Tingting|婷婷|Lili|Meijia/i.test(v.name))
       || vs.find((v) => /zh[-_]CN/i.test(v.lang)) || vs.find((v) => /^zh/i.test(v.lang)) || null;
   }
   if ('speechSynthesis' in window) { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
   // 机器朗读一句，读完时 resolve
-  function speakP(text) {
+  function speakP(text, lang) {
     return new Promise((res) => {
       if (!('speechSynthesis' in window) || !text) return res();
-      const u = new SpeechSynthesisUtterance(text.replace(/−/g, '减').replace(/×/g, '乘').replace(/÷/g, '除以'));
-      u.lang = 'zh-CN'; if (zhVoice) u.voice = zhVoice; u.rate = 0.92; u.pitch = 1.1;
+      const en = lang === 'en';
+      const u = new SpeechSynthesisUtterance(en ? text : text.replace(/−/g, '减').replace(/×/g, '乘').replace(/÷/g, '除以'));
+      if (en) { u.lang = 'en-US'; if (enVoice) u.voice = enVoice; u.rate = 0.8; u.pitch = 1.1; }
+      else { u.lang = 'zh-CN'; if (zhVoice) u.voice = zhVoice; u.rate = 0.92; u.pitch = 1.1; }
       u.onend = u.onerror = () => res();
       speechSynthesis.speak(u);
       setTimeout(res, 1500 + text.length * 350);
@@ -125,12 +135,15 @@
       if (my !== vTok) return;
       if (!p) continue;
       if (typeof p === 'string') { await speakP(p); continue; }
+      if (p.en) { await speakP(p.en, 'en'); continue; }
       const name = Array.isArray(p.clip) ? pick(p.clip) : p.clip;
       const pr = playClip(name);
       if (pr) await pr; else if (p.text) await speakP(p.text);
     }
   }
-  const say = (text) => talk(text);
+  const say = (text) => (Array.isArray(text) ? talk(...text) : talk(text));
+  // 提示文字：朗读用的数组 → 显示用的文字
+  const sayText = (x) => (Array.isArray(x) ? x.map((p) => (typeof p === 'string' ? p : p.en || '')).join(' ') : x);
 
   let ac = null;
   // iOS 17+：让声音不受静音键影响
@@ -176,12 +189,13 @@
   try { const v = localStorage.getItem(AVATAR_KEY); if (v) avatar = v === 'none' ? null : v; } catch (e) { }
   const rider = (who, mood) => actor(who, mood, avatar);
   const starsHtml = (n, max = 3) => Array.from({ length: max }, (_, i) => `<span class="${i < n ? 'on' : ''}">★</span>`).join('');
-  const totalStars = () => ['math', 'hanzi'].reduce((t, k) => t + Object.values(S[k].stars).reduce((a, b) => a + b, 0), 0);
+  const totalStars = () => ['math', 'hanzi', 'english'].reduce((t, k) => t + Object.values(S[k].stars).reduce((a, b) => a + b, 0), 0);
 
   // 科目：数学、汉字（以后加成语、英文）
   const SUBJECTS = {
     math: { key: 'math', icon: '🔢', name: '数学闯关', levels: MATH_LEVELS, stations: MATH_STATIONS },
     hanzi: { key: 'hanzi', icon: '🀄', name: '汉字闯关', levels: HanziGen.levels, stations: HanziGen.stations },
+    english: { key: 'english', icon: '🔤', name: '英文闯关', levels: EnglishGen.levels, stations: EnglishGen.stations },
   };
   let cur = SUBJECTS.math;
   const SD = () => S[cur.key];
@@ -254,8 +268,8 @@
             ${t.open ? '' : '<span class="isle-lock">🔒</span>'}
           </button>`).join('')}
         <button class="harbor" id="garage">
-          <span class="harbor-art"><span class="ship">🚢</span><span class="dock">⚓</span></span>
-          <span class="isle-label"><b>汽车港口</b><small>🚗 ${S.cars.length}/${VEHICLES.length} 辆</small></span>
+          <span class="harbor-art"><span class="ship">🚢</span><span class="dock">🎁</span></span>
+          <span class="isle-label"><b>宝物港口</b><small>🚗${S.cars.length} 💌${S.cards.length} 🧲${S.magnets.length}</small></span>
         </button>
       </div>`, 'bg-ocean');
     app.querySelectorAll('.isle').forEach((b) => b.onclick = () => {
@@ -372,6 +386,7 @@
     if (outOfFuel()) return showFuelOut();
     let plan;
     if (cur.key === 'hanzi') plan = HanziGen.plan(lv, S.hanzi.review);
+    else if (cur.key === 'english') plan = EnglishGen.plan(lv, S.english.review);
     else {
       const n = lv.n || (lv.boss ? 10 : 8);
       const types = Object.keys(lv.types);
@@ -431,6 +446,7 @@
     const step = run.plan[run.i];
     let q;
     if (run.subj.key === 'hanzi') q = step.review ? HanziGen.make(step.review.c, step.review.type, run.lv) : HanziGen.make(step.c, step.type, run.lv);
+    else if (run.subj.key === 'english') q = step.review ? EnglishGen.make(step.review.type, run.lv, step.review.item) : EnglishGen.make(step.type, run.lv, undefined, run.seen);
     else if (step.review) q = MathGen.build(step.review.type, step.review.d, step.review.p);
     else {
       let tries = 0;
@@ -453,17 +469,43 @@
 
     const ch = $('#choices');
     ch.className = 'choices n' + q.choices.length;
-    const label = (c) => q.kind === 'cmp' ? `<b>${c}</b><small>${{ '>': '大于', '<': '小于', '=': '等于' }[c]}</small>` : `<b>${c}</b>`;
-    ch.classList.toggle('hz', q.kind === 'hz'); ch.classList.toggle('emo', q.kind === 'hzpic');
-    ch.innerHTML = q.choices.map((c) => `<button class="choice" data-v="${c}">${label(c)}</button>`).join('');
-    ch.querySelectorAll('.choice').forEach((b) => b.onclick = () => answer(b));
+    const label = (c) => q.kind === 'cmp' ? `<b>${c}</b><small>${{ '>': '大于', '<': '小于', '=': '等于' }[c]}</small>`
+      : q.choiceEmo ? `<i class="ce">${q.choiceEmo[c]}</i><b>${c}</b>` : `<b>${c}</b>`;
+    ch.classList.toggle('hz', q.kind === 'hz'); ch.classList.toggle('emo', q.kind === 'hzpic' || q.kind === 'emo');
+    ch.classList.toggle('en', q.kind === 'en'); ch.classList.toggle('enw', q.kind === 'enw');
+    if (q.kind === 'order') renderOrder(q, card, ch);
+    else {
+      ch.innerHTML = q.choices.map((c) => `<button class="choice" data-v="${c}">${label(c)}</button>`).join('');
+      ch.querySelectorAll('.choice').forEach((b) => b.onclick = () => answer(b));
+    }
     const lt = $('.qtext.listen', card); if (lt) lt.onclick = () => say(q.speak);
     say(q.speak);
   }
 
-  function answer(btn) {
-    const q = run.q; if (!q || btn.disabled || run.locked) return;
-    const v = btn.dataset.v;
+  // 排词成句：点单词放进句子，点句子里的词放回去；排满了自动检查
+  function renderOrder(q, card, ch) {
+    const slots = document.createElement('div'); slots.className = 'slots';
+    card.querySelector('.qtext').replaceWith(slots);
+    ch.className = 'choices tiles';
+    const placed = [];
+    const draw = () => {
+      slots.innerHTML = q.choices.map((_, i) => placed[i] !== undefined ? `<button class="slot full" data-i="${i}">${q.choices[placed[i]]}</button>` : '<span class="slot"></span>').join('') + `<span class="punct">${q.punct}</span>`;
+      ch.innerHTML = q.choices.map((w, i) => `<button class="choice tile ${placed.includes(i) ? 'used' : ''}" data-i="${i}">${w}</button>`).join('');
+      ch.querySelectorAll('.tile:not(.used)').forEach((b) => b.onclick = () => { if (run.locked) return; fx.tap(); placed.push(+b.dataset.i); say([{ en: q.choices[+b.dataset.i] }]); draw(); check(); });
+      slots.querySelectorAll('.slot.full').forEach((b) => b.onclick = () => { if (run.locked) return; placed.splice(+b.dataset.i); draw(); });
+    };
+    const check = () => {
+      if (placed.length < q.choices.length) return;
+      const built = placed.map((i) => q.choices[i]).join(' ');
+      answer(slots, built);
+      if (built !== q.answer) setTimeout(() => { placed.length = 0; slots.classList.remove('wrong'); draw(); }, 900);
+    };
+    draw();
+  }
+
+  function answer(btn, given) {
+    const q = run.q; if (!q || run.locked || (given === undefined && btn.disabled)) return;
+    const v = given !== undefined ? given : btn.dataset.v;
     const right = String(q.answer) === v;
     const D = S[run.subj.key], isMath = run.subj.key === 'math';
     const ms = myStats(D);
@@ -485,12 +527,14 @@
       if (q.learn) Promise.all([Promise.race([praised, new Promise((r) => setTimeout(r, 2500))]), new Promise((r) => setTimeout(r, 700))]).then(() => { if (run && run.q === q) showLearn(q.learn, go); });
       else setTimeout(go, 1300);
     } else {
-      btn.classList.add('wrong'); btn.disabled = true; fx.bad();
+      btn.classList.add('wrong'); if (given === undefined) btn.disabled = true; fx.bad();
       if (run.wrongThis === 0) {
         run.wrong++; stats.wrong++;
         if (isMath && !q.isReview) adapt(q.type, run.lv, false);
         if (!D.review.some((r) => r.key === q.key)) {
-          D.review.push(isMath ? { type: q.type, d: q.d, p: q.p, key: q.key, at: Date.now() } : { type: q.type, c: q.c, key: q.key, at: Date.now() });
+          D.review.push(isMath ? { type: q.type, d: q.d, p: q.p, key: q.key, at: Date.now() }
+            : run.subj.key === 'english' ? { type: q.type, item: q.item, lv: run.lv.id, key: q.key, at: Date.now() }
+              : { type: q.type, c: q.c, key: q.key, at: Date.now() });
           if (D.review.length > 30) D.review.shift();
         }
         D.wrongLog.unshift({ t: q.log || q.text, a: q.answer, pick: v, at: Date.now() });
@@ -518,9 +562,9 @@
     h.hidden = false;
     $('#qcard').classList.add('has-hint');
     const enc = pick(ENCOURAGE);
-    h.innerHTML = `<div class="hint-say">💡 ${q.hint.say}</div>${q.hint.html || ''}${q.hint.eq ? `<div class="hint-eq">${q.hint.eq}</div>` : ''}${q.hint.vis ? renderVis(q.hint.vis) : ''}`;
+    h.innerHTML = `<div class="hint-say">💡 ${sayText(q.hint.say)}</div>${q.hint.html || ''}${q.hint.eq ? `<div class="hint-eq">${q.hint.eq}</div>` : ''}${q.hint.vis ? renderVis(q.hint.vis) : ''}`;
     if (q.hint.vis && q.hint.vis.kind === 'deal') bindDeal(h, q.hint.vis);
-    talk(run.teaseClip, { clip: VOICE.wrong, text: enc }, q.hint.say);
+    talk(run.teaseClip, { clip: VOICE.wrong, text: enc }, ...(Array.isArray(q.hint.say) ? q.hint.say : [q.hint.say]));
   }
 
   function renderVis(v) {
@@ -564,6 +608,7 @@
 
   // ================= 汉字学习卡 =================
   function showLearn(it, done) {
+    if (it.en) return showLearnEn(it, done);
     const card = $('#qcard'); if (!card) return;
     const hl = (str) => str.split(it.c).join(`<em>${it.c}</em>`);
     card.className = 'qcard learn pop';
@@ -578,6 +623,34 @@
     $('#goOn').onclick = () => { fx.tap(); done(); };
   }
 
+  // 英文学习卡：图片、单词、中文、例句
+  function showLearnEn(it, done) {
+    const card = $('#qcard'); if (!card) return;
+    const word = it.w.split(' ')[0];
+    const hl = (str) => (it.sentenceOnly ? str : str.replace(new RegExp(`\\b(${word}s?)\\b`, 'i'), '<em>$1</em>'));
+    card.className = 'qcard learn learn-en pop';
+    card.innerHTML = `
+      <div class="lc-top"><span class="lc-pic">${it.e}</span><div>
+        <button class="lc-en ${it.sentenceOnly ? 'sent' : ''}" data-en="${it.w}">${it.w}</button>
+        <div class="lc-zh">${it.zh}</div></div></div>
+      ${it.s && !it.sentenceOnly ? `<button class="lc-sent" data-en="${it.s}"><span>🔊 ${hl(it.s)}</span><small>${it.szh || ''}</small></button>` : '<div></div>'}`;
+    $('#choices').innerHTML = '<button class="big" id="goOn">继续追 ▶</button>';
+    $('#choices').className = 'choices one';
+    talk(...(it.say || [{ en: it.w }]), it.sentenceOnly ? null : it.zh, it.s && !it.sentenceOnly ? { en: it.s } : null);
+    card.querySelectorAll('[data-en]').forEach((b) => b.onclick = () => say([{ en: b.dataset.en }]));
+    $('#goOn').onclick = () => { fx.tap(); done(); };
+  }
+
+  // ================= 奖励：数学=汽车，汉字=动物明信片，英文=冰箱贴 =================
+  const REWARD = {
+    math: { list: () => VEHICLES, owned: () => S.cars, word: '辆新车', say: (r) => [{ clip: 'C03', text: '你获得了一辆新车！' }, r.name + '！'], label: (r) => r.name },
+    hanzi: { list: () => POSTCARDS, owned: () => S.cards, word: '张动物明信片', say: (r) => [`你获得了一张动物明信片：${r.name}！`], label: (r) => r.name },
+    english: { list: () => MAGNETS, owned: () => S.magnets, word: '个冰箱贴', say: (r) => [`你获得了一个冰箱贴：${r.place}，${r.name}！`], label: (r) => `${r.place} · ${r.name}` },
+  };
+  const rewardArt = (kind, r, small) => kind === 'math' ? `<span class="veh-art">${r.e}</span>`
+    : kind === 'hanzi' ? `<span class="postcard ${small ? 'sm' : ''}" style="--bg:${r.bg}"><span class="stamp">${r.e}</span><span class="pc-e">${r.e}</span><span class="pc-name">${r.name}</span>${small ? '' : `<span class="pc-home">住在：${r.home}</span>`}</span>`
+      : `<span class="magnet ${small ? 'sm' : ''}" style="--c:${r.color}"><span class="mg-flag">${r.flag}</span><span class="mg-e">${r.e}</span><span class="mg-place">${r.place}</span>${small ? '' : `<span class="mg-name">${r.name}</span>`}</span>`;
+
   // ================= 通关 =================
   function finishLevel() {
     const { lv, wrong } = run;
@@ -585,9 +658,10 @@
     const D = S[run.subj.key];
     const firstClear = !D.stars[lv.id];
     D.stars[lv.id] = Math.max(D.stars[lv.id] || 0, stars);
-    // 任何科目第一次通关一关，就收集下一辆车
-    let newCar = null;
-    if (firstClear) { newCar = VEHICLES.find((v) => !S.cars.includes(v.id)) || null; if (newCar) S.cars.push(newCar.id); }
+    // 每个科目第一次通过一关，就得到这个科目的下一个奖励
+    const RW = REWARD[run.subj.key], rkind = run.subj.key;
+    let newR = null;
+    if (firstClear) { newR = RW.list().find((v) => !RW.owned().includes(v.id)) || null; if (newR) RW.owned().push(newR.id); }
     save(); syncNow();
     // 抓住动画
     moveTom(true);
@@ -596,7 +670,7 @@
     fx.vroom();
     setTimeout(() => {
       fx.win(); confetti();
-      talk({ clip: 'C02', text: `抓到啦！${S.names.cat}抓住了${S.names.mouse}！` }, newCar && { clip: 'C03', text: '你获得了一辆新车！' }, newCar && newCar.name + '！');
+      talk({ clip: 'C02', text: `抓到啦！${S.names.cat}抓住了${S.names.mouse}！` }, ...(newR ? RW.say(newR) : []));
       const secs = Math.round((Date.now() - run.t0) / 1000);
       const next = levelById(lv.id + 1);
       const fuel = outOfFuel();
@@ -605,7 +679,7 @@
         <div class="caught">${rider('tom', 'happy')}<div class="cage">${rider('jerry', 'dizzy')}</div></div>
         <div class="bigstars">${starsHtml(0)}</div>
         <p class="meta">用时 ${Math.floor(secs / 60)} 分 ${secs % 60} 秒 · 答错 ${wrong} 次</p>
-        ${newCar ? `<div class="newcar"><span>${newCar.e}</span>获得新车：<b>${newCar.name}</b></div>` : ''}
+        ${newR ? `<div class="newcar">${rewardArt(rkind, newR, true)}<span>获得一${RW.word}：<b>${RW.label(newR)}</b></span></div>` : ''}
         <div class="row">
           <button class="big ghost" id="rest">🏠 不玩了</button>
           <button class="big ghost" id="again">再玩一次</button>
@@ -624,24 +698,30 @@
   }
 
   // ================= 车库 =================
-  function showGarage() {
+  // 收藏册：三个标签页
+  let shelfTab = 'math';
+  function showGarage(tab) {
+    if (tab) shelfTab = tab;
+    const TABS = [['math', '🚗 小汽车', '数学'], ['hanzi', '💌 动物明信片', '汉字'], ['english', '🧲 冰箱贴', '英文']];
+    const RW = REWARD[shelfTab], list = RW.list(), owned = RW.owned();
     screen(`
-      <header class="bar"><button class="pill" id="back">◀ 返回</button><div class="pill">🚗 汽车收藏 ${S.cars.length}/${VEHICLES.length}</div><div></div></header>
-      <p class="hello">数学、汉字每通过一个新关卡，就能收集一辆新车！点一点听听名字</p>
-      <div class="garage">
-        ${VEHICLES.map((v, i) => {
-          const has = S.cars.includes(v.id);
-          return `<button class="car ${has ? '' : 'locked'} " data-id="${v.id}">
-            <span class="veh">${v.e}</span><span>${has ? v.name : '继续闯关解锁'}</span></button>`;
+      <header class="bar"><button class="pill" id="back">◀ 世界地图</button><div class="ribbon">我的收藏</div><div class="pill">${owned.length}/${list.length}</div></header>
+      <div class="tabs">${TABS.map(([k, n]) => `<button class="tab ${k === shelfTab ? 'on' : ''}" data-k="${k}">${n} <small>${REWARD[k].owned().length}</small></button>`).join('')}</div>
+      <p class="hello small">${TABS.find((t) => t[0] === shelfTab)[2]}每通过一个新关卡，就能得到一${RW.word}！点一点听听名字</p>
+      <div class="shelf ${shelfTab}">
+        ${list.map((r) => {
+          const has = owned.includes(r.id);
+          return `<button class="item ${has ? '' : 'locked'}" data-id="${r.id}">${has ? rewardArt(shelfTab, r) : `<span class="mystery">?</span>`}${shelfTab === 'math' ? `<span class="nm">${has ? r.name : '继续闯关'}</span>` : ''}</button>`;
         }).join('')}
       </div>`, 'bg-sky');
     $('#back').onclick = () => { fx.tap(); showHome(); };
-    app.querySelectorAll('.car').forEach((b) => b.onclick = () => {
-      const v = vehicle(b.dataset.id);
-      if (!S.cars.includes(v.id)) { fx.bad(); talk({ clip: 'C06', text: '这辆车还没解锁，继续闯关就能得到！' }); return; }
-      fx.vroom(); say(v.name + '！');
+    app.querySelectorAll('.tab').forEach((b) => b.onclick = () => { fx.tap(); showGarage(b.dataset.k); });
+    app.querySelectorAll('.item').forEach((b) => b.onclick = () => {
+      const r = list.find((x) => x.id === b.dataset.id);
+      if (!owned.includes(r.id)) { fx.bad(); return shelfTab === 'math' ? talk({ clip: 'C06', text: '这辆车还没解锁，继续闯关就能得到！' }) : say('还没得到，继续闯关就能收集到！'); }
+      fx.tap(); say(shelfTab === 'math' ? r.name + '！' : shelfTab === 'hanzi' ? `${r.name}，住在${r.home}。` : `${r.place}，${r.name}！`);
     });
-    redraw = showGarage;
+    redraw = () => showGarage();
   }
 
   // ================= 没油了 =================
@@ -685,6 +765,12 @@
       const x = hst[t] || { right: 0, wrong: 0 }, all = x.right + x.wrong;
       return `<tr><td>${HanziGen.NAMES[t]}</td><td>${all}</td><td>${all ? Math.round(x.right / all * 100) + '%' : '-'}</td></tr>`;
     }).join('');
+    const est = sumStats(S.english);
+    const enRows = Object.keys(EnglishGen.NAMES).map((t) => {
+      const x = est[t] || { right: 0, wrong: 0 }, all = x.right + x.wrong;
+      return `<tr><td>${EnglishGen.NAMES[t]}</td><td>${all}</td><td>${all ? Math.round(x.right / all * 100) + '%' : '-'}</td></tr>`;
+    }).join('');
+    const enLog = S.english.wrongLog.slice(0, 12).map((w) => `<li>${w.t} → ${w.a} <small>（选了 ${w.pick}）</small></li>`).join('') || '<li>暂无</li>';
     const hzLog = S.hanzi.wrongLog.slice(0, 12).map((w) => `<li>${w.t} <small>（选了 ${w.pick}）</small></li>`).join('') || '<li>暂无</li>';
     screen(`
       <header class="bar"><button class="pill" id="back">◀ 返回</button><div class="pill">⚙️ 家长设置</div><div class="pill">${VERSION}</div></header>
@@ -719,6 +805,10 @@
           <p>待复习的字：${S.hanzi.review.map((r) => r.c).filter((c, i, a) => a.indexOf(c) === i).join(' ') || '暂无'} · 已通关 ${Object.keys(S.hanzi.stars).length}/${HanziGen.levels.length} 关</p>
           <h4>最近答错</h4><ul class="log">${hzLog}</ul>
           <details><summary>查看全部 ${HanziGen.ALL.length} 个字</summary><p class="hz-all">${HANZI_LESSONS.map((L) => `<b>${L.name}</b> ${L.list.map((x) => x.c).join(' ')}`).join('<br>')}</p></details></section>
+        <section><h3>英文情况</h3>
+          <table><tr><th>题型</th><th>做过</th><th>一次答对</th></tr>${enRows}</table>
+          <p>待复习：${S.english.review.length} 道 · 已通关 ${Object.keys(S.english.stars).length}/${EnglishGen.levels.length} 关</p>
+          <h4>最近答错</h4><ul class="log">${enLog}</ul></section>
         <section><h3>危险操作</h3><button class="mini danger" id="wipe">清空全部进度</button></section>
       </div>`, 'bg-plain');
     $('#back').onclick = () => {

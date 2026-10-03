@@ -6,6 +6,8 @@
 - `content/math-levels.js` 数学关卡配置（加关卡、调难度只改这里）
 - `content/hanzi.js` 汉字题库：每个字的拼音、词语、短句、图片（加字只改这里；加了新字要重新生成 `fonts/kai.woff2` 字体子集，否则新字会用系统字体显示）
 - `js/hanzi.js` 汉字出题器
+- `content/english.js` 英文题库（参考 RAZ aa–C：单词、句子、高频词、押韵词、25 关配置）；`js/english.js` 英文出题器（9 种题型）
+- `content/rewards.js` 奖励：动物明信片（汉字）、世界各地冰箱贴（英文）；小汽车（数学）在 `js/characters.js`
 - `js/math.js` 数学出题器（各题型和提示）
 - `js/app.js` 游戏主程序（地图、闯关、车库、家长设置、每日时长）
 - `js/characters.js` 角色形象和车库车辆

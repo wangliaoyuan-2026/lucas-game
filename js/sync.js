@@ -41,6 +41,10 @@
     out.cars = VEHICLES.map((v) => v.id).filter((id) => has.has(id));
     out.math = mergeSubj(a.math, b.math);
     out.hanzi = mergeSubj(a.hanzi, b.hanzi);
+    out.english = mergeSubj(a.english, b.english);
+    const union = (list, x, y) => { const h = new Set([...(x || []), ...(y || [])]); return list.map((r) => r.id).filter((id) => h.has(id)); };
+    if (window.POSTCARDS) out.cards = union(POSTCARDS, a.cards, b.cards);   // 明信片、冰箱贴：合在一起
+    if (window.MAGNETS) out.magnets = union(MAGNETS, a.magnets, b.magnets);
     return out;                                                  // today（今天玩了多久）每台设备各算各的
   }
   // 比较时不管字段顺序（不然两台设备会来回重复上传）

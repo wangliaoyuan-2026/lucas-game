@@ -13,9 +13,10 @@
     { id: 'idiom', name: '成语魔法森林', sub: '成语 · 即将开放', open: false,
       sand: '#e9d6a8', grass: '#5fae6a', grassD: '#428a4e', deco: ['🌲', '🦉', '🍄', '🌲'],
       castle: { wall: '#e0d6cf', wallD: '#c4b5aa', roof: '#2e7d32', roofD: '#1b5e20', flag: '#fdd835' } },
-    { id: 'english', name: 'ABC 糖果岛', sub: '英文 · 即将开放', open: false,
+    { id: 'english', name: 'ABC 糖果岛', sub: '英文 · RAZ', open: true,
       sand: '#ffe6c7', grass: '#ffc1dd', grassD: '#f59ac3', deco: ['🍭', '🍬', '🧁', '🍭'],
-      castle: { wall: '#e1f5fe', wallD: '#b3e1f7', roof: '#ec407a', roofD: '#c2185b', flag: '#29b6f6' } },
+      castle: { wall: '#e1f5fe', wallD: '#b3e1f7', roof: '#ec407a', roofD: '#c2185b', flag: '#29b6f6' },
+      ground: ['#ffe4f1', '#fdd5e8'], road: '#fff1c9', end: '🍭' },
   ];
 
   // ---------- 城堡 ----------
